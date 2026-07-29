@@ -6,44 +6,44 @@
 
 @layer base {
   :root {
-    --background: 22 45% 98%;
-    --foreground: 19 45% 12%;
+    --background: 280 20% 98%;
+    --foreground: 280 40% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 19 45% 12%;
+    --card-foreground: 280 40% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 19 45% 12%;
+    --popover-foreground: 280 40% 12%;
 
-    --primary: 25 47% 38%;
+    --primary: 275 60% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 19 45% 12%;
-    --secondary-foreground: 22 45% 98%;
+    --secondary: 280 40% 12%;
+    --secondary-foreground: 280 20% 98%;
 
-    --muted: 24 35% 92%;
-    --muted-foreground: 19 25% 40%;
+    --muted: 275 30% 92%;
+    --muted-foreground: 275 25% 40%;
 
-    --accent: 25 47% 38%;
+    --accent: 275 60% 40%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 24 30% 90%;
-    --input: 24 30% 90%;
-    --ring: 25 47% 38%;
+    --border: 275 30% 90%;
+    --input: 275 30% 90%;
+    --ring: 275 60% 40%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 22 45% 98%;
-    --sidebar-foreground: 19 45% 12%;
-    --sidebar-primary: 25 47% 38%;
+    --sidebar-background: 280 20% 98%;
+    --sidebar-foreground: 280 40% 12%;
+    --sidebar-primary: 275 60% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 35% 92%;
-    --sidebar-accent-foreground: 19 45% 12%;
-    --sidebar-border: 24 30% 90%;
-    --sidebar-ring: 25 47% 38%;
+    --sidebar-accent: 275 30% 92%;
+    --sidebar-accent-foreground: 280 40% 12%;
+    --sidebar-border: 275 30% 90%;
+    --sidebar-ring: 275 60% 40%;
 
     --font-display: 'Playfair Display', serif;
     --font-body: 'Outfit', sans-serif;

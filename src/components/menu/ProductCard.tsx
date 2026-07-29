@@ -13,10 +13,10 @@ export default function ProductCard({ product, onSelect }: Props) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="bg-card rounded-2xl shadow-card overflow-hidden cursor-pointer active:scale-[0.97] transition-all"
+      className="bg-white rounded-2xl shadow-md hover:shadow-lg hover:-translate-y-1 border border-purple-100 overflow-hidden cursor-pointer active:scale-[0.97] transition-all duration-300"
       onClick={() => onSelect(product)}
     >
-      <div className="h-32 bg-muted relative overflow-hidden">
+      <div className="h-40 bg-muted relative overflow-hidden">
         {product.image ? (
           <img
             src={product.image}
