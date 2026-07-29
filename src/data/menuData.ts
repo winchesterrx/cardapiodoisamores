@@ -50,7 +50,7 @@ export interface KitItem {
   quantity: number;
 }
 
-export interface Product {\n  kitItems?: {productId: string, quantity: number}[];
+export interface Product {
   id: string;
   name: string;
   description: string;
