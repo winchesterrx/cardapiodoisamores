@@ -224,11 +224,7 @@ app.get('/api/products', async (req, res) => {
       SELECT * FROM product_images
     `);
 
-    const [kitItemsRows] = await db.query(`
-      SELECT pki.kit_id, pki.quantity, p.id, p.name, p.price, p.image
-      FROM product_kit_items pki
-      JOIN products p ON pki.product_id = p.id
-    `);
+
 
     const formattedProducts = products.map(p => {
       const addons = productAddonsRows
@@ -243,15 +239,7 @@ app.get('/api/products', async (req, res) => {
         .filter(img => img.product_id === p.id)
         .map(img => img.image_url);
 
-      const kitItems = kitItemsRows
-        .filter(k => k.kit_id === p.id)
-        .map(k => ({
-          id: k.id,
-          name: k.name,
-          price: Number(k.price),
-          image: k.image,
-          quantity: k.quantity
-        }));
+
 
       return {
         id: p.id,
@@ -268,8 +256,7 @@ app.get('/api/products', async (req, res) => {
         promoExpiry: p.promo_expiry,
         promoStock: p.promo_stock,
         orderCount: p.order_count,
-        isMadeToOrder: Boolean(p.is_made_to_order),
-        kitItems: kitItems.length ? kitItems : undefined
+        isMadeToOrder: Boolean(p.is_made_to_order)
       };
     });
 
@@ -281,7 +268,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { id, name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder, kitItems } = req.body;
+  const { id, name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -309,11 +296,7 @@ app.post('/api/products', async (req, res) => {
       }
     }
     
-    if (kitItems && kitItems.length > 0) {
-      for (const item of kitItems) {
-        await connection.query('INSERT INTO product_kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)', [id, item.id, item.quantity || 1]);
-      }
-    }
+
     await connection.commit();
     res.status(201).json({ message: 'Produto criado com sucesso' });
   } catch (error) {
@@ -326,7 +309,7 @@ app.post('/api/products', async (req, res) => {
 });
 
 app.put('/api/products/:id', async (req, res) => {
-  const { name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder, kitItems } = req.body;
+  const { name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -357,12 +340,7 @@ app.put('/api/products/:id', async (req, res) => {
       }
     }
 
-    await connection.query('DELETE FROM product_kit_items WHERE kit_id = ?', [req.params.id]);
-    if (kitItems && kitItems.length > 0) {
-      for (const item of kitItems) {
-        await connection.query('INSERT INTO product_kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)', [req.params.id, item.id, item.quantity || 1]);
-      }
-    }
+
 
     await connection.commit();
     res.json({ message: 'Atualizado com sucesso' });

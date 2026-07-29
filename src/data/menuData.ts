@@ -42,13 +42,6 @@ export interface SelectedAddon {
   quantity: number;
 }
 
-export interface KitItem {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  quantity: number;
-}
 
 export interface Product {
   id: string;
@@ -66,7 +59,6 @@ export interface Product {
   promoStock?: number;
   orderCount: number;
   isMadeToOrder?: boolean;
-  kitItems?: KitItem[];
 }
 
 export interface CartItem {
