@@ -2,7 +2,6 @@ import { useState } from "react";
 import { X, Minus, Plus, ChevronLeft, ChevronRight, Package, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Product, SelectedAddon } from "@/data/menuData";
-import { getAddonsForCategory } from "@/data/menuData";
 import { useCart } from "@/contexts/CartContext";
 import PromoTimer from "./PromoTimer";
 
@@ -22,7 +21,7 @@ export default function ProductModal({ product, onClose }: Props) {
 
   const images = product.images?.length ? product.images : (product.image ? [product.image] : []);
 
-  const availableAddons = getAddonsForCategory(product.category);
+  const availableAddons = product.addons || [];
 
   const setAddonQty = (addonId: string, qty: number) => {
     setAddonQuantities((prev) => {
