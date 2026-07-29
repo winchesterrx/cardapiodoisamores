@@ -9,7 +9,8 @@ import capuccinoCream from "@/assets/capuccino-cream.png";
 import pinkLemonade from "@/assets/pink-lemonade.png";
 import espressoItaliano from "@/assets/espresso-italiano.png";
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_URL = envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
 
 export const API = {
   async post(path: string, data: any) { 
