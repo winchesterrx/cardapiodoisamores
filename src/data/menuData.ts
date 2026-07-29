@@ -42,6 +42,14 @@ export interface SelectedAddon {
   quantity: number;
 }
 
+export interface KitItem {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  quantity: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -50,6 +58,7 @@ export interface Product {
   image: string;
   images?: string[];
   category: string;
+  brand?: string;
   addons: Addon[];
   isPromo: boolean;
   originalPrice?: number;
@@ -57,6 +66,7 @@ export interface Product {
   promoStock?: number;
   orderCount: number;
   isMadeToOrder?: boolean;
+  kitItems?: KitItem[];
 }
 
 export interface CartItem {
@@ -111,7 +121,12 @@ export interface Order {
 
 // ── Categories ──
 export const defaultCategories: Category[] = [
-  { id: "acai", name: "Açaí", icon: "ice-cream" },
+  { id: "kits", name: "Kits / Combos", icon: "gift" },
+  { id: "essencias", name: "Essências", icon: "flame" },
+  { id: "carvoes", name: "Carvões", icon: "package" },
+  { id: "aluminio", name: "Papel Alumínio", icon: "disc" },
+  { id: "narguiles", name: "Narguiles", icon: "coffee" },
+  { id: "outros", name: "Outros", icon: "plus-circle" },
 ];
 
 const CATEGORIES_KEY = "digitalmenu_categories_v2";
@@ -143,11 +158,7 @@ export async function fetchCategories(): Promise<Category[]> {
 
 // ── Addons ──
 export const defaultAddons: Addon[] = [
-  { id: "nutella", name: "Nutella", price: 4.0, categoryIds: ["acai"] },
-  { id: "morango", name: "Morango Fresco", price: 3.0, categoryIds: ["acai"] },
-  { id: "leite-ninho", name: "Leite Ninho", price: 2.0, categoryIds: ["acai"] },
-  { id: "granola", name: "Granola", price: 1.5, categoryIds: ["acai"] },
-  { id: "leite-condensado", name: "Leite Condensado", price: 1.5, categoryIds: ["acai"] },
+  { id: "gelo", name: "Gelo", price: 2.0, categoryIds: ["essencias", "outros"] },
 ];
 
 const ADDONS_KEY = "digitalmenu_addons_v2";
@@ -185,9 +196,30 @@ export function getAddonsForCategory(categoryId: string): Addon[] {
 const imageMap: Record<string, string> = {};
 
 export const defaultProducts: Product[] = [
-  { id: "1", name: "Açaí Pequeno", description: "Açaí no copo pequeno (300ml). Escolha seus adicionais!", price: 18.0, image: "/uploads/copos_300ml.png", category: "acai", addons: defaultAddons, isPromo: false, orderCount: 200 },
-  { id: "2", name: "Açaí Médio", description: "Açaí no copo médio (500ml). Escolha seus adicionais!", price: 20.0, image: "/uploads/copos_500ml.png", category: "acai", addons: defaultAddons, isPromo: false, orderCount: 450 },
-  { id: "3", name: "Açaí Grande", description: "Açaí no copo grande (700ml). Escolha seus adicionais!", price: 22.0, image: "/uploads/copos_700ml.png", category: "acai", addons: defaultAddons, isPromo: false, orderCount: 300 },
+  // Zomo
+  { id: "1", name: "Zomo Strong Mint", description: "Menta extremamente refrescante", price: 15.0, image: "/uploads/zomo_mint.png", category: "essencias", brand: "Zomo", addons: defaultAddons, isPromo: false, orderCount: 200 },
+  { id: "2", name: "Zomo Alfajor", description: "Sabor doce do famoso doce argentino", price: 15.0, image: "/uploads/zomo_alfajor.png", category: "essencias", brand: "Zomo", addons: defaultAddons, isPromo: false, orderCount: 150 },
+  { id: "3", name: "Zomo Swiss Alp", description: "Chiclete de menta", price: 15.0, image: "/uploads/zomo_swiss.png", category: "essencias", brand: "Zomo", addons: defaultAddons, isPromo: false, orderCount: 180 },
+  // Ziggy
+  { id: "4", name: "Ziggy Happy Frut", description: "Balinha tutti-frutti", price: 18.0, image: "/uploads/ziggy_happy.png", category: "essencias", brand: "Ziggy", addons: defaultAddons, isPromo: false, orderCount: 300 },
+  { id: "5", name: "Ziggy Tropical", description: "Mix de frutas tropicais", price: 18.0, image: "/uploads/ziggy_tropical.png", category: "essencias", brand: "Ziggy", addons: defaultAddons, isPromo: true, originalPrice: 20.0, orderCount: 250 },
+  // Nay
+  { id: "6", name: "Nay Melon Blend", description: "Melão suave", price: 17.0, image: "/uploads/nay_melon.png", category: "essencias", brand: "Nay", addons: defaultAddons, isPromo: false, orderCount: 90 },
+  { id: "7", name: "Nay Strawberry", description: "Morango intenso", price: 17.0, image: "/uploads/nay_strawberry.png", category: "essencias", brand: "Nay", addons: defaultAddons, isPromo: false, orderCount: 110 },
+  // Onix
+  { id: "8", name: "Onix Grape", description: "Uva gelada", price: 16.0, image: "/uploads/onix_grape.png", category: "essencias", brand: "Onix", addons: defaultAddons, isPromo: false, orderCount: 140 },
+  // Adalya
+  { id: "9", name: "Adalya Love 66", description: "Maracujá, melão, melancia e menta", price: 25.0, image: "/uploads/adalya_love.png", category: "essencias", brand: "Adalya", addons: defaultAddons, isPromo: false, orderCount: 400 },
+  
+  // Carvões
+  { id: "10", name: "Carvão Zomo 1kg", description: "Carvão de coco hexagonal", price: 35.0, image: "/uploads/carvao_zomo.png", category: "carvoes", addons: [], isPromo: false, orderCount: 500 },
+  { id: "11", name: "Carvão Art Coco 1kg", description: "Carvão de coco tradicional", price: 38.0, image: "/uploads/carvao_art.png", category: "carvoes", addons: [], isPromo: false, orderCount: 450 },
+
+  // Alumínio
+  { id: "12", name: "Alumínio Predator 50 un", description: "Folhas pré-cortadas, espessura grossa", price: 15.0, image: "/uploads/alum_predator.png", category: "aluminio", addons: [], isPromo: false, orderCount: 300 },
+  
+  // Narguiles
+  { id: "13", name: "Narguile Triton Zip", description: "Narguile pequeno completo (Cores variadas)", price: 250.0, image: "/uploads/triton.png", category: "narguiles", addons: [], isPromo: false, orderCount: 20 },
 ];
 
 const STORAGE_KEY = "digitalmenu_products_v5";
@@ -452,6 +484,18 @@ export async function saveCoupon(coupon: any) {
   return API.post('/coupons', coupon);
 }
 
-export async function deleteCoupon(id: string) {
+export async function deleteCoupon(id: number) {
   return API.del(`/coupons/${id}`);
+}
+
+// ── Brands ──
+export async function fetchBrands(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_URL}/brands`);
+    if (!res.ok) throw new Error('Falha ao buscar marcas');
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 }

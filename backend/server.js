@@ -8,6 +8,7 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import webpush from 'web-push';
+import crypto from 'crypto';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
@@ -74,6 +75,17 @@ const saveBase64Image = async (base64Str) => {
   
   return `/uploads/${filename}`;
 };
+
+// ── Brands ──
+app.get('/api/brands', async (req, res) => {
+  try {
+    const [brands] = await db.query('SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != "" ORDER BY brand ASC');
+    res.json(brands.map(b => b.brand));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar marcas' });
+  }
+});
 
 // ── Categories ──
 app.get('/api/categories', async (req, res) => {
@@ -212,6 +224,12 @@ app.get('/api/products', async (req, res) => {
       SELECT * FROM product_images
     `);
 
+    const [kitItemsRows] = await db.query(`
+      SELECT pki.kit_id, pki.quantity, p.id, p.name, p.price, p.image
+      FROM product_kit_items pki
+      JOIN products p ON pki.product_id = p.id
+    `);
+
     const formattedProducts = products.map(p => {
       const addons = productAddonsRows
         .filter(pa => pa.product_id === p.id)
@@ -225,6 +243,16 @@ app.get('/api/products', async (req, res) => {
         .filter(img => img.product_id === p.id)
         .map(img => img.image_url);
 
+      const kitItems = kitItemsRows
+        .filter(k => k.kit_id === p.id)
+        .map(k => ({
+          id: k.id,
+          name: k.name,
+          price: Number(k.price),
+          image: k.image,
+          quantity: k.quantity
+        }));
+
       return {
         id: p.id,
         name: p.name,
@@ -233,13 +261,15 @@ app.get('/api/products', async (req, res) => {
         image: p.image,
         images: images.length ? images : (p.image ? [p.image] : []),
         category: p.category_id,
+        brand: p.brand,
         addons: addons,
         isPromo: Boolean(p.is_promo),
         originalPrice: p.original_price ? Number(p.original_price) : undefined,
         promoExpiry: p.promo_expiry,
         promoStock: p.promo_stock,
         orderCount: p.order_count,
-        isMadeToOrder: Boolean(p.is_made_to_order)
+        isMadeToOrder: Boolean(p.is_made_to_order),
+        kitItems: kitItems.length ? kitItems : undefined
       };
     });
 
@@ -251,7 +281,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { id, name, description, price, image, images, category, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
+  const { id, name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder, kitItems } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -263,8 +293,8 @@ app.post('/api/products', async (req, res) => {
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
     await connection.query(
-      'INSERT INTO products (id, name, description, price, image, category_id, is_promo, original_price, promo_expiry, promo_stock, is_made_to_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, description, price, mainImage, category, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false]
+      'INSERT INTO products (id, name, description, price, image, category_id, brand, is_promo, original_price, promo_expiry, promo_stock, is_made_to_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, description, price, mainImage, category, brand || null, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false]
     );
     
     if (savedImages && savedImages.length > 0) {
@@ -276,6 +306,12 @@ app.post('/api/products', async (req, res) => {
     if (addons && addons.length > 0) {
       for (const a of addons) {
         await connection.query('INSERT INTO product_addons (product_id, addon_id) VALUES (?, ?)', [id, a.id]);
+      }
+    }
+    
+    if (kitItems && kitItems.length > 0) {
+      for (const item of kitItems) {
+        await connection.query('INSERT INTO product_kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)', [id, item.id, item.quantity || 1]);
       }
     }
     await connection.commit();
@@ -290,7 +326,7 @@ app.post('/api/products', async (req, res) => {
 });
 
 app.put('/api/products/:id', async (req, res) => {
-  const { name, description, price, image, images, category, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
+  const { name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder, kitItems } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -302,8 +338,8 @@ app.put('/api/products/:id', async (req, res) => {
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
     await connection.query(
-      'UPDATE products SET name = ?, description = ?, price = ?, image = ?, category_id = ?, is_promo = ?, original_price = ?, promo_expiry = ?, promo_stock = ?, is_made_to_order = ? WHERE id = ?',
-      [name, description, price, mainImage, category, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false, req.params.id]
+      'UPDATE products SET name = ?, description = ?, price = ?, image = ?, category_id = ?, brand = ?, is_promo = ?, original_price = ?, promo_expiry = ?, promo_stock = ?, is_made_to_order = ? WHERE id = ?',
+      [name, description, price, mainImage, category, brand || null, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false, req.params.id]
     );
     
     // Deleta as imagens antigas e re-insere
@@ -320,6 +356,14 @@ app.put('/api/products/:id', async (req, res) => {
         await connection.query('INSERT INTO product_addons (product_id, addon_id) VALUES (?, ?)', [req.params.id, a.id]);
       }
     }
+
+    await connection.query('DELETE FROM product_kit_items WHERE kit_id = ?', [req.params.id]);
+    if (kitItems && kitItems.length > 0) {
+      for (const item of kitItems) {
+        await connection.query('INSERT INTO product_kit_items (kit_id, product_id, quantity) VALUES (?, ?, ?)', [req.params.id, item.id, item.quantity || 1]);
+      }
+    }
+
     await connection.commit();
     res.json({ message: 'Atualizado com sucesso' });
   } catch (error) {
@@ -549,11 +593,15 @@ app.post('/api/orders', async (req, res) => {
     await connection.beginTransaction();
     
     // extrai dados do body baseado no formato do mock (Order)
-    const { 
+    let { 
       id, number, consumeType, paymentMethod, address, mesa, 
       customerWhatsApp, customerCPF, status, total, items, timeline,
       usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee, couponId, courierId, origin
     } = req.body;
+
+    if (!id) {
+      id = crypto.randomUUID();
+    }
 
     // Verificar se a loja está aberta
     const [settingsRowsCheck] = await connection.query('SELECT is_open FROM store_settings WHERE id = 1');
@@ -768,10 +816,10 @@ const initDbSettings = async () => {
         \`accepts_pix\` TINYINT DEFAULT 1,
         \`accepts_cash\` TINYINT DEFAULT 1,
         \`accepts_card\` TINYINT DEFAULT 1,
-        \`opening_time\` VARCHAR(5) DEFAULT "10:00",
-        \`closing_time\` VARCHAR(5) DEFAULT "22:00",
+        \`opening_time\` VARCHAR(5) DEFAULT '10:00',
+        \`closing_time\` VARCHAR(5) DEFAULT '22:00',
         \`delivery_fee\` DECIMAL(10,2) DEFAULT 0.00,
-        \`delivery_info_text\` VARCHAR(255) DEFAULT "Entregas apenas depois das 14:00"
+        \`delivery_info_text\` VARCHAR(255) DEFAULT 'Entregas apenas depois das 14:00'
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
     await db.query(`
