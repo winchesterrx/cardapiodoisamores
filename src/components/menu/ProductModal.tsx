@@ -167,9 +167,9 @@ export default function ProductModal({ product, onClose }: Props) {
                             qty > 0 ? "border-primary bg-primary/5" : "border-border"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xs text-foreground">{addon.name}</span>
-                            <span className="text-xs font-semibold text-accent-foreground bg-accent px-2 py-0.5 rounded-full">
+                          <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                            <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                            <span className="text-xs font-semibold text-accent-foreground bg-accent px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
                               + R$ {Number(addon.price).toFixed(2)}
                             </span>
                           </div>
