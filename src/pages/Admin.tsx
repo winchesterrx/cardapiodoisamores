@@ -89,6 +89,7 @@ export default function Admin() {
   const [formPromoExpiry, setFormPromoExpiry] = useState("");
   const [formPromoStock, setFormPromoStock] = useState("");
   const [formAddons, setFormAddons] = useState<string[]>([]);
+  const [formKitItems, setFormKitItems] = useState<{productId: string, quantity: number}[]>([]);
   const [formIsMadeToOrder, setFormIsMadeToOrder] = useState(false);
   const [formBrand, setFormBrand] = useState("");
   const [isNewBrand, setIsNewBrand] = useState(false);
@@ -151,6 +152,7 @@ export default function Admin() {
     setFormName(""); setFormDesc(""); setFormPrice("");
     setFormCategory(categories[0]?.id || "frango");
     setFormImages([]); setFormIsPromo(false); setFormOriginalPrice(""); setFormPromoExpiry(""); setFormPromoStock(""); setFormAddons([]);
+    setFormKitItems([]);
     setFormIsMadeToOrder(false); setFormBrand(""); setIsNewBrand(false);
     setEditingProduct(null); setShowForm(false);
   };
