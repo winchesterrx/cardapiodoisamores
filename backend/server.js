@@ -415,7 +415,8 @@ app.get('/api/store/settings', async (req, res) => {
       delivery_info_text: "Entregas apenas depois das 14:00",
       is_open: 1,
       store_address: "",
-      delivery_fee_per_km: 0.00
+      delivery_fee_per_km: 0.00,
+      delivery_fee_minimum: 0.00
     });
   } catch (error) {
     console.error(error);
@@ -428,7 +429,7 @@ app.put('/api/store/settings', async (req, res) => {
     has_delivery, has_table, has_pickup, 
     accepts_pix, accepts_cash, accepts_card, 
     opening_time, closing_time, delivery_fee, delivery_info_text, is_open,
-    store_address, delivery_fee_per_km
+    store_address, delivery_fee_per_km, delivery_fee_minimum
   } = req.body;
   try {
     await db.query(
@@ -436,14 +437,14 @@ app.put('/api/store/settings', async (req, res) => {
         has_delivery = ?, has_table = ?, has_pickup = ?, 
         accepts_pix = ?, accepts_cash = ?, accepts_card = ?, 
         opening_time = ?, closing_time = ?, delivery_fee = ?, delivery_info_text = ?, is_open = ?,
-        store_address = ?, delivery_fee_per_km = ?
+        store_address = ?, delivery_fee_per_km = ?, delivery_fee_minimum = ?
        WHERE id = 1`,
       [
         has_delivery ? 1 : 0, has_table ? 1 : 0, has_pickup ? 1 : 0,
         accepts_pix ? 1 : 0, accepts_cash ? 1 : 0, accepts_card ? 1 : 0,
         opening_time, closing_time, delivery_fee, delivery_info_text || "Entregas apenas depois das 14:00",
         is_open !== undefined ? (is_open ? 1 : 0) : 1,
-        store_address || "", delivery_fee_per_km || 0.00
+        store_address || "", delivery_fee_per_km || 0.00, delivery_fee_minimum || 0.00
       ]
     );
     res.json({ message: 'Configurações atualizadas com sucesso' });
@@ -458,7 +459,7 @@ app.post('/api/calculate-delivery', async (req, res) => {
   if (!customerAddress) return res.status(400).json({ error: 'Endereço do cliente não fornecido' });
 
   try {
-    const [rows] = await db.query('SELECT store_address, delivery_fee_per_km FROM store_settings WHERE id = 1');
+    const [rows] = await db.query('SELECT store_address, delivery_fee_per_km, delivery_fee_minimum FROM store_settings WHERE id = 1');
     const settings = rows[0];
     if (!settings || !settings.store_address || !settings.delivery_fee_per_km) {
       return res.status(400).json({ error: 'Configurações de frete da loja incompletas' });
@@ -498,6 +499,9 @@ app.post('/api/calculate-delivery', async (req, res) => {
     const distanceInKm = distanceInMeters / 1000;
     
     let calculatedFee = distanceInKm * Number(settings.delivery_fee_per_km);
+    const minFee = Number(settings.delivery_fee_minimum || 0);
+    calculatedFee = Math.max(calculatedFee, minFee);
+    
     // Arredonda para 2 casas decimais
     calculatedFee = Math.round(calculatedFee * 100) / 100;
 

@@ -399,19 +399,21 @@ export async function fetchCustomerPoints(cpf: string): Promise<number> {
 
 // ── Store Settings ──
 export interface StoreSettings {
-  has_delivery: boolean | number;
-  has_table: boolean | number;
-  has_pickup: boolean | number;
-  accepts_pix: boolean | number;
-  accepts_cash: boolean | number;
-  accepts_card: boolean | number;
+  id?: number;
+  has_delivery: boolean;
+  has_table: boolean;
+  has_pickup: boolean;
+  accepts_pix: boolean;
+  accepts_cash: boolean;
+  accepts_card: boolean;
   opening_time: string;
   closing_time: string;
   delivery_fee: number;
-  delivery_info_text?: string;
-  is_open?: boolean | number;
+  delivery_info_text: string;
+  is_open: boolean;
   store_address?: string;
   delivery_fee_per_km?: number;
+  delivery_fee_minimum?: number;
 }
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {

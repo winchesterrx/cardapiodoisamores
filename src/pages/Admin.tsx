@@ -133,7 +133,8 @@ export default function Admin() {
         is_open: Boolean(storeSettings.is_open) ? 1 : 0,
         delivery_fee: Number(storeSettings.delivery_fee) || 0,
         store_address: storeSettings.store_address,
-        delivery_fee_per_km: Number(storeSettings.delivery_fee_per_km) || 0
+        delivery_fee_per_km: Number(storeSettings.delivery_fee_per_km) || 0,
+        delivery_fee_minimum: Number(storeSettings.delivery_fee_minimum) || 0
       });
       alert("Configurações da loja salvas com sucesso!");
     }
@@ -1037,6 +1038,16 @@ export default function Admin() {
                     className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground"
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">Cálculo dinâmico baseado na distância.</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Taxa Mínima (R$)</label>
+                  <input
+                    type="number" step="0.01"
+                    value={storeSettings.delivery_fee_minimum || ""}
+                    onChange={(e) => setStoreSettings({ ...storeSettings, delivery_fee_minimum: parseFloat(e.target.value) || 0 })}
+                    className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Valor mínimo a ser cobrado na entrega por Km.</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Endereço Base da Loja (ou CEP)</label>
