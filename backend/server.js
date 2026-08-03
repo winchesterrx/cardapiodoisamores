@@ -413,7 +413,9 @@ app.get('/api/store/settings', async (req, res) => {
       closing_time: "22:00",
       delivery_fee: 0.00,
       delivery_info_text: "Entregas apenas depois das 14:00",
-      is_open: 1
+      is_open: 1,
+      store_address: "",
+      delivery_fee_per_km: 0.00
     });
   } catch (error) {
     console.error(error);
@@ -425,26 +427,87 @@ app.put('/api/store/settings', async (req, res) => {
   const { 
     has_delivery, has_table, has_pickup, 
     accepts_pix, accepts_cash, accepts_card, 
-    opening_time, closing_time, delivery_fee, delivery_info_text, is_open
+    opening_time, closing_time, delivery_fee, delivery_info_text, is_open,
+    store_address, delivery_fee_per_km
   } = req.body;
   try {
     await db.query(
       `UPDATE store_settings SET 
         has_delivery = ?, has_table = ?, has_pickup = ?, 
         accepts_pix = ?, accepts_cash = ?, accepts_card = ?, 
-        opening_time = ?, closing_time = ?, delivery_fee = ?, delivery_info_text = ?, is_open = ? 
+        opening_time = ?, closing_time = ?, delivery_fee = ?, delivery_info_text = ?, is_open = ?,
+        store_address = ?, delivery_fee_per_km = ?
        WHERE id = 1`,
       [
         has_delivery ? 1 : 0, has_table ? 1 : 0, has_pickup ? 1 : 0,
         accepts_pix ? 1 : 0, accepts_cash ? 1 : 0, accepts_card ? 1 : 0,
         opening_time, closing_time, delivery_fee, delivery_info_text || "Entregas apenas depois das 14:00",
-        is_open !== undefined ? (is_open ? 1 : 0) : 1
+        is_open !== undefined ? (is_open ? 1 : 0) : 1,
+        store_address || "", delivery_fee_per_km || 0.00
       ]
     );
     res.json({ message: 'Configurações atualizadas com sucesso' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao atualizar configurações' });
+  }
+});
+
+app.post('/api/calculate-delivery', async (req, res) => {
+  const { customerAddress } = req.body;
+  if (!customerAddress) return res.status(400).json({ error: 'Endereço do cliente não fornecido' });
+
+  try {
+    const [rows] = await db.query('SELECT store_address, delivery_fee_per_km FROM store_settings WHERE id = 1');
+    const settings = rows[0];
+    if (!settings || !settings.store_address || !settings.delivery_fee_per_km) {
+      return res.status(400).json({ error: 'Configurações de frete da loja incompletas' });
+    }
+
+    // 1. Geocoding Cliente
+    const geocodeClientRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(customerAddress)}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'CardapioDigital/1.0' }
+    });
+    const geocodeClient = await geocodeClientRes.json();
+    if (!geocodeClient || geocodeClient.length === 0) {
+      return res.status(400).json({ error: 'Endereço do cliente não encontrado' });
+    }
+    const clientLat = geocodeClient[0].lat;
+    const clientLon = geocodeClient[0].lon;
+
+    // 2. Geocoding Loja
+    const geocodeStoreRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(settings.store_address)}&format=json&limit=1`, {
+       headers: { 'User-Agent': 'CardapioDigital/1.0' }
+    });
+    const geocodeStore = await geocodeStoreRes.json();
+    if (!geocodeStore || geocodeStore.length === 0) {
+      return res.status(400).json({ error: 'Endereço da loja inválido nas configurações' });
+    }
+    const storeLat = geocodeStore[0].lat;
+    const storeLon = geocodeStore[0].lon;
+
+    // 3. Routing OSRM (Lon,Lat)
+    const osrmRes = await fetch(`http://router.project-osrm.org/route/v1/driving/${storeLon},${storeLat};${clientLon},${clientLat}?overview=false`);
+    const osrmData = await osrmRes.json();
+    
+    if (osrmData.code !== 'Ok' || !osrmData.routes || osrmData.routes.length === 0) {
+      return res.status(400).json({ error: 'Não foi possível calcular a rota' });
+    }
+
+    const distanceInMeters = osrmData.routes[0].distance;
+    const distanceInKm = distanceInMeters / 1000;
+    
+    let calculatedFee = distanceInKm * Number(settings.delivery_fee_per_km);
+    // Arredonda para 2 casas decimais
+    calculatedFee = Math.round(calculatedFee * 100) / 100;
+
+    res.json({
+      distanceKm: distanceInKm.toFixed(2),
+      fee: calculatedFee
+    });
+  } catch (error) {
+    console.error('Erro ao calcular frete:', error);
+    res.status(500).json({ error: 'Erro interno ao calcular frete' });
   }
 });
 

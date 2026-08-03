@@ -44,6 +44,7 @@ export interface SelectedAddon {
 
 
 export interface Product {
+  kitItems?: {productId: string, quantity: number}[];
   id: string;
   name: string;
   description: string;

@@ -131,7 +131,9 @@ export default function Admin() {
         accepts_cash: Boolean(storeSettings.accepts_cash) ? 1 : 0,
         accepts_card: Boolean(storeSettings.accepts_card) ? 1 : 0,
         is_open: Boolean(storeSettings.is_open) ? 1 : 0,
-        delivery_fee: Number(storeSettings.delivery_fee) || 0
+        delivery_fee: Number(storeSettings.delivery_fee) || 0,
+        store_address: storeSettings.store_address,
+        delivery_fee_per_km: Number(storeSettings.delivery_fee_per_km) || 0
       });
       alert("Configurações da loja salvas com sucesso!");
     }
@@ -1014,14 +1016,34 @@ export default function Admin() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-foreground border-b border-border pb-2">Taxas e Horários</h3>
+              <h3 className="font-semibold text-foreground border-b border-border pb-2">Taxas, Endereço e Horários</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Taxa de Entrega (R$)</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Taxa de Entrega Fixa (R$)</label>
                   <input
                     type="number" step="0.01"
                     value={storeSettings.delivery_fee}
                     onChange={(e) => setStoreSettings({ ...storeSettings, delivery_fee: parseFloat(e.target.value) || 0 })}
+                    className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Opcional. Substituída se calcular por Km.</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Taxa por Km (R$)</label>
+                  <input
+                    type="number" step="0.01"
+                    value={storeSettings.delivery_fee_per_km || ""}
+                    onChange={(e) => setStoreSettings({ ...storeSettings, delivery_fee_per_km: parseFloat(e.target.value) || 0 })}
+                    className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Cálculo dinâmico baseado na distância.</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Endereço Base da Loja (ou CEP)</label>
+                  <input
+                    type="text" placeholder="Ex: 01001-000 ou Rua X, 123"
+                    value={storeSettings.store_address || ""}
+                    onChange={(e) => setStoreSettings({ ...storeSettings, store_address: e.target.value })}
                     className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground"
                   />
                 </div>

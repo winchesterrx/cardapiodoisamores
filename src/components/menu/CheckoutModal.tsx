@@ -39,6 +39,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");
+  // Delivery Fee states
+  const [calculatedDeliveryFee, setCalculatedDeliveryFee] = useState<number | null>(null);
+  const [calculatingFee, setCalculatingFee] = useState(false);
+  const [deliveryDistance, setDeliveryDistance] = useState<string | null>(null);
+  const [deliveryFeeError, setDeliveryFeeError] = useState("");
+
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
@@ -140,6 +146,37 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCouponError("");
   };
 
+  const handleCalculateDelivery = async () => {
+    if (!address.trim()) {
+      setDeliveryFeeError("Informe o endereço para calcular o frete.");
+      return;
+    }
+    setCalculatingFee(true);
+    setDeliveryFeeError("");
+    try {
+      const response = await fetch('/api/calculate-delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerAddress: address })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeliveryFeeError(data.error || "Erro ao calcular frete");
+        setCalculatedDeliveryFee(null);
+        setDeliveryDistance(null);
+      } else {
+        setCalculatedDeliveryFee(data.fee);
+        setDeliveryDistance(data.distanceKm);
+      }
+    } catch (error) {
+      setDeliveryFeeError("Erro de comunicação com o servidor.");
+      setCalculatedDeliveryFee(null);
+      setDeliveryDistance(null);
+    } finally {
+      setCalculatingFee(false);
+    }
+  };
+
   let discountValue = 0;
   let pointsToUse = 0;
   if (usePoints && loyaltySettings && loyaltySettings.active && customerPoints > 0) {
@@ -161,7 +198,14 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   }
 
   const totalDiscount = discountValue + couponDiscount;
-  const currentDeliveryFee = consume === "entrega" && !isFreeShipping ? Number(storeSettings?.delivery_fee || 0) : 0;
+  let currentDeliveryFee = 0;
+  if (consume === "entrega" && !isFreeShipping && storeSettings) {
+    if (Number(storeSettings.delivery_fee_per_km) > 0) {
+      currentDeliveryFee = calculatedDeliveryFee !== null ? calculatedDeliveryFee : 0;
+    } else {
+      currentDeliveryFee = Number(storeSettings.delivery_fee || 0);
+    }
+  }
   const finalTotal = Math.max(0, total - totalDiscount) + currentDeliveryFee;
 
   const isStoreOpen = () => {
@@ -222,9 +266,15 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       alert("Se preenchido, o CPF deve conter 11 dígitos.");
       return;
     }
-    if (consume === "entrega" && !address.trim()) {
-      alert("Por favor, informe o endereço de entrega.");
-      return;
+    if (consume === "entrega") {
+      if (!address.trim()) {
+        alert("Por favor, informe o endereço de entrega.");
+        return;
+      }
+      if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && calculatedDeliveryFee === null && !isFreeShipping) {
+        alert("Por favor, calcule o frete antes de finalizar o pedido clicando em 'Calcular Frete'.");
+        return;
+      }
     }
     if (consume === "mesa" && !mesa.trim()) {
       alert("Por favor, informe o número da mesa.");
@@ -541,8 +591,31 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
               {consume === "entrega" && (
                 <div>
                   <label className="text-sm font-medium text-foreground">Endereço de Entrega *</label>
-                  <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, número, bairro..."
-                    className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <div className="flex gap-2 mt-1">
+                    <input value={address} onChange={(e) => {
+                      setAddress(e.target.value);
+                      if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+                        setCalculatedDeliveryFee(null);
+                        setDeliveryDistance(null);
+                      }
+                    }} placeholder="Rua, número, bairro..."
+                      className="flex-1 border border-border rounded-xl p-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    {storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && !isFreeShipping && (
+                      <button
+                        onClick={handleCalculateDelivery}
+                        disabled={calculatingFee}
+                        className="shrink-0 bg-secondary text-secondary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                      >
+                        {calculatingFee ? "Calculando..." : "Calcular Frete"}
+                      </button>
+                    )}
+                  </div>
+                  {deliveryFeeError && <p className="text-xs text-destructive mt-1">{deliveryFeeError}</p>}
+                  {calculatedDeliveryFee !== null && deliveryDistance !== null && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                      Distância: {deliveryDistance} km - Frete: R$ {calculatedDeliveryFee.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               )}
               {consume === "mesa" && (
