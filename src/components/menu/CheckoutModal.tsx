@@ -146,8 +146,8 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCouponError("");
   };
 
-  const handleCalculateDelivery = async () => {
-    if (!address.trim()) {
+  const handleCalculateDelivery = async (addressToCalculate: string = address) => {
+    if (!addressToCalculate.trim()) {
       setDeliveryFeeError("Informe o endereço para calcular o frete.");
       return;
     }
@@ -157,7 +157,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       const response = await fetch('/api/calculate-delivery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerAddress: address })
+        body: JSON.stringify({ customerAddress: addressToCalculate })
       });
       const data = await response.json();
       if (!response.ok) {
@@ -176,6 +176,16 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       setCalculatingFee(false);
     }
   };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (consume === "entrega" && address.trim().length > 5 && storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+        handleCalculateDelivery(address);
+      }
+    }, 1500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [address, consume, storeSettings]);
 
   let discountValue = 0;
   let pointsToUse = 0;
@@ -602,10 +612,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                       className="flex-1 border border-border rounded-xl p-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                     {storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && !isFreeShipping && (
                       <button
-                        onClick={handleCalculateDelivery}
+                        type="button"
+                        onClick={() => handleCalculateDelivery(address)}
                         disabled={calculatingFee}
-                        className="shrink-0 bg-secondary text-secondary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                        className="shrink-0 bg-secondary text-secondary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                       >
+                        {calculatingFee && <span className="w-4 h-4 border-2 border-secondary-foreground/30 border-t-secondary-foreground rounded-full animate-spin"></span>}
                         {calculatingFee ? "Calculando..." : "Calcular Frete"}
                       </button>
                     )}

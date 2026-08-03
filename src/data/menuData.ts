@@ -410,6 +410,8 @@ export interface StoreSettings {
   delivery_fee: number;
   delivery_info_text?: string;
   is_open?: boolean | number;
+  store_address?: string;
+  delivery_fee_per_km?: number;
 }
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {
@@ -429,7 +431,9 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
       opening_time: "10:00",
       closing_time: "22:00",
       delivery_fee: 0.00,
-      delivery_info_text: "Entregas apenas depois das 14:00"
+      delivery_info_text: "Entregas apenas depois das 14:00",
+      store_address: "",
+      delivery_fee_per_km: 0
     };
   }
 }
