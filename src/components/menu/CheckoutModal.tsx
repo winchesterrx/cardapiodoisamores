@@ -19,7 +19,10 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [step, setStep] = useState<"cart" | "checkout">("cart");
   const [consume, setConsume] = useState<ConsumeOption>("entrega");
   const [payment, setPayment] = useState<PaymentOption>("pix");
-  const [address, setAddress] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [reference, setReference] = useState("");
   const [mesa, setMesa] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
@@ -146,7 +149,10 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCouponError("");
   };
 
-  const handleCalculateDelivery = async (addressToCalculate: string = address) => {
+  const addressForCalculation = `${street}, ${number}, ${neighborhood}`;
+  const fullAddress = `${street}, ${number} - ${neighborhood}${reference ? ` (Ref: ${reference})` : ''}`;
+
+  const handleCalculateDelivery = async (addressToCalculate: string = addressForCalculation) => {
     if (!addressToCalculate.trim()) {
       setDeliveryFeeError("Informe o endereço para calcular o frete.");
       return;
@@ -179,13 +185,13 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (consume === "entrega" && address.trim().length > 5 && storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
-        handleCalculateDelivery(address);
+      if (consume === "entrega" && street.trim().length > 3 && number.trim() && neighborhood.trim().length > 2 && storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+        handleCalculateDelivery(addressForCalculation);
       }
     }, 1500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [address, consume, storeSettings]);
+  }, [street, number, neighborhood, consume, storeSettings]);
 
   let discountValue = 0;
   let pointsToUse = 0;
@@ -276,15 +282,13 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       alert("Se preenchido, o CPF deve conter 11 dígitos.");
       return;
     }
-    if (consume === "entrega") {
-      if (!address.trim()) {
-        alert("Por favor, informe o endereço de entrega.");
-        return;
-      }
-      if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && calculatedDeliveryFee === null && !isFreeShipping) {
-        alert("Por favor, calcule o frete antes de finalizar o pedido clicando em 'Calcular Frete'.");
-        return;
-      }
+    if (consume === "entrega" && (!street.trim() || !number.trim() || !neighborhood.trim())) {
+      alert("Por favor, preencha rua, número e bairro para entrega.");
+      return;
+    }
+    if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && calculatedDeliveryFee === null && !isFreeShipping) {
+      alert("Por favor, calcule o frete antes de finalizar o pedido clicando em 'Calcular Frete'.");
+      return;
     }
     if (consume === "mesa" && !mesa.trim()) {
       alert("Por favor, informe o número da mesa.");
@@ -328,10 +332,10 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
         notes: item.notes,
       })),
       total: finalTotal,
-      consumeType: consumeLabels[consume],
+      consumeType: consume,
       paymentMethod: paymentLabels[payment],
-      address: consume === "entrega" ? address : "",
-      mesa: consume === "mesa" ? mesa : "",
+      address: consume === "entrega" ? fullAddress : undefined,
+      mesa: consume === "mesa" ? mesa : undefined,
       customerWhatsApp: customerWhatsApp.replace(/\D/g, ""),
       customerCPF: cleanCPF || "",
       status: "recebido",
@@ -599,29 +603,58 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
               )}
 
               {consume === "entrega" && (
-                <div>
-                  <label className="text-sm font-medium text-foreground">Endereço de Entrega *</label>
-                  <div className="flex gap-2 mt-1">
-                    <input value={address} onChange={(e) => {
-                      setAddress(e.target.value);
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Rua *</label>
+                    <input value={street} onChange={(e) => {
+                      setStreet(e.target.value);
                       if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
-                        setCalculatedDeliveryFee(null);
-                        setDeliveryDistance(null);
+                        setCalculatedDeliveryFee(null); setDeliveryDistance(null);
                       }
-                    }} placeholder="Rua, número, bairro..."
-                      className="flex-1 border border-border rounded-xl p-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    }} placeholder="Ex: Av. Brasil"
+                      className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Número *</label>
+                      <input value={number} onChange={(e) => {
+                        setNumber(e.target.value);
+                        if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+                          setCalculatedDeliveryFee(null); setDeliveryDistance(null);
+                        }
+                      }} placeholder="Ex: 123"
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Bairro *</label>
+                      <input value={neighborhood} onChange={(e) => {
+                        setNeighborhood(e.target.value);
+                        if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+                          setCalculatedDeliveryFee(null); setDeliveryDistance(null);
+                        }
+                      }} placeholder="Ex: Centro"
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-foreground">Ponto de Referência (Opcional)</label>
+                      <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ex: Ao lado do mercado"
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                    </div>
                     {storeSettings && Number(storeSettings.delivery_fee_per_km) > 0 && !isFreeShipping && (
                       <button
                         type="button"
-                        onClick={() => handleCalculateDelivery(address)}
+                        onClick={() => handleCalculateDelivery(addressForCalculation)}
                         disabled={calculatingFee}
-                        className="shrink-0 bg-secondary text-secondary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                        className="h-[46px] shrink-0 bg-secondary text-secondary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 mb-0.5"
                       >
                         {calculatingFee && <span className="w-4 h-4 border-2 border-secondary-foreground/30 border-t-secondary-foreground rounded-full animate-spin"></span>}
                         {calculatingFee ? "Calculando..." : "Calcular Frete"}
                       </button>
                     )}
                   </div>
+                  
                   {deliveryFeeError && <p className="text-xs text-destructive mt-1">{deliveryFeeError}</p>}
                   {calculatedDeliveryFee !== null && deliveryDistance !== null && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
