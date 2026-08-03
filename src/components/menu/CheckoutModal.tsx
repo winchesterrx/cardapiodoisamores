@@ -48,6 +48,10 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [deliveryDistance, setDeliveryDistance] = useState<string | null>(null);
   const [deliveryFeeError, setDeliveryFeeError] = useState("");
 
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
@@ -192,6 +196,27 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
 
     return () => clearTimeout(delayDebounceFn);
   }, [street, number, neighborhood, consume, storeSettings]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (consume === "entrega" && street.trim().length > 3 && showSuggestions) {
+        setIsSearchingAddress(true);
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(street)}&format=json&addressdetails=1&limit=5&countrycodes=br`);
+          const data = await response.json();
+          setAddressSuggestions(data);
+        } catch (error) {
+          console.error("Erro ao buscar endereço:", error);
+        } finally {
+          setIsSearchingAddress(false);
+        }
+      } else {
+        setAddressSuggestions([]);
+      }
+    }, 800);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [street, showSuggestions, consume]);
 
   let discountValue = 0;
   let pointsToUse = 0;
@@ -604,15 +629,45 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
 
               {consume === "entrega" && (
                 <div className="space-y-3">
-                  <div>
+                  <div className="relative">
                     <label className="text-sm font-medium text-foreground">Rua *</label>
                     <input value={street} onChange={(e) => {
                       setStreet(e.target.value);
+                      setShowSuggestions(true);
                       if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
                         setCalculatedDeliveryFee(null); setDeliveryDistance(null);
                       }
                     }} placeholder="Ex: Av. Brasil"
                       className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                    
+                    {showSuggestions && (addressSuggestions.length > 0 || isSearchingAddress) && (
+                      <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                        {isSearchingAddress ? (
+                          <div className="p-3 text-sm text-muted-foreground text-center">Buscando...</div>
+                        ) : (
+                          addressSuggestions.map((sug, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                const road = sug.address?.road || sug.address?.pedestrian || sug.name;
+                                const suburb = sug.address?.suburb || sug.address?.neighbourhood || sug.address?.city_district || "";
+                                setStreet(road || street);
+                                if (suburb) setNeighborhood(suburb);
+                                setShowSuggestions(false);
+                                setAddressSuggestions([]);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-muted border-b border-border last:border-0"
+                            >
+                              <div className="font-medium text-foreground">{sug.address?.road || sug.address?.pedestrian || sug.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {[sug.address?.suburb || sug.address?.neighbourhood, sug.address?.city_district, sug.address?.city || sug.address?.town].filter(Boolean).join(", ")}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
