@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X, Minus, Plus, Trash2, MessageCircle, ChevronRight, ShoppingBag, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/contexts/CartContext";
-import { addOrder, getNextOrderNumber, addOrderAsync, fetchCustomerPoints, fetchLoyaltySettings, fetchStoreSettings, validateCoupon } from "@/data/menuData";
+import { addOrder, getNextOrderNumber, addOrderAsync, fetchCustomerPoints, fetchLoyaltySettings, fetchStoreSettings, validateCoupon, API_URL } from "@/data/menuData";
 import type { Order, LoyaltySettings, StoreSettings, Coupon } from "@/data/menuData";
 import { useEffect } from "react";
 
@@ -154,7 +154,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCalculatingFee(true);
     setDeliveryFeeError("");
     try {
-      const response = await fetch('/api/calculate-delivery', {
+      const response = await fetch(`${API_URL}/calculate-delivery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customerAddress: addressToCalculate })
