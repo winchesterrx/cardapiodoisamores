@@ -19,14 +19,14 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [step, setStep] = useState<"cart" | "checkout">("cart");
   const [consume, setConsume] = useState<ConsumeOption>("entrega");
   const [payment, setPayment] = useState<PaymentOption>("pix");
-  const [street, setStreet] = useState("");
-  const [number, setNumber] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [reference, setReference] = useState("");
+  const [street, setStreet] = useState(() => localStorage.getItem("customer_street") || "");
+  const [number, setNumber] = useState(() => localStorage.getItem("customer_number") || "");
+  const [neighborhood, setNeighborhood] = useState(() => localStorage.getItem("customer_neighborhood") || "");
+  const [reference, setReference] = useState(() => localStorage.getItem("customer_reference") || "");
   const [mesa, setMesa] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerWhatsApp, setCustomerWhatsApp] = useState("");
-  const [customerCPF, setCustomerCPF] = useState("");
+  const [customerName, setCustomerName] = useState(() => localStorage.getItem("customer_name") || "");
+  const [customerWhatsApp, setCustomerWhatsApp] = useState(() => localStorage.getItem("customer_whatsapp") || "");
+  const [customerCPF, setCustomerCPF] = useState(() => localStorage.getItem("customer_cpf") || "");
   
   // Settings states
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
@@ -202,7 +202,8 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       if (consume === "entrega" && street.trim().length > 3 && showSuggestions) {
         setIsSearchingAddress(true);
         try {
-          const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(street)}&format=json&addressdetails=1&limit=5&countrycodes=br`);
+          const queryStr = encodeURIComponent(`${street}, Votuporanga, SP`);
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${queryStr}&format=json&addressdetails=1&limit=5&countrycodes=br`);
           const data = await response.json();
           setAddressSuggestions(data);
         } catch (error) {
@@ -399,6 +400,14 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       localStorage.setItem("digitalmenu_customer_cpf", customerWhatsApp.replace(/\D/g, ""));
     }
 
+    localStorage.setItem("customer_street", street);
+    localStorage.setItem("customer_number", number);
+    localStorage.setItem("customer_neighborhood", neighborhood);
+    localStorage.setItem("customer_reference", reference);
+    localStorage.setItem("customer_name", customerName);
+    localStorage.setItem("customer_whatsapp", customerWhatsApp);
+    localStorage.setItem("customer_cpf", customerCPF);
+
     // Build WhatsApp message
     const itemLines = items
       .map((item) => {
@@ -417,7 +426,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       .join("\n");
 
     let locationInfo = "";
-    if (consume === "entrega") locationInfo = `\n📍 Endereço: ${address}`;
+    if (consume === "entrega") locationInfo = `\n📍 Endereço: ${fullAddress}`;
     else if (consume === "mesa") locationInfo = `\n🪑 Mesa: ${mesa}`;
 
     let message = `🛍️ *NOVO PEDIDO #${realOrderNumber} - Docinhos Gourmet*\n\n`;
@@ -447,10 +456,14 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
 
     clearCart();
     setStep("cart");
-    setCustomerName("");
-    setCustomerWhatsApp("");
-    setCustomerCPF("");
-    setAddress("");
+    // Don't clear customer data so they stay in localStorage/inputs for next time
+    // setCustomerName("");
+    // setCustomerWhatsApp("");
+    // setCustomerCPF("");
+    // setStreet("");
+    // setNumber("");
+    // setNeighborhood("");
+    // setReference("");
     setMesa("");
     setChangeOption("no");
     setChangeNeededFor("");
