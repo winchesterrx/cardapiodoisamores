@@ -1,27 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { fetchProducts } from '@/data/menuData';
+import { fetchProducts, fetchStoreSettings, API_URL, StoreSettings } from '@/data/menuData';
+import PDVProductModal from '@/components/admin/PDVProductModal';
+import PDVCheckoutModal from '@/components/admin/PDVCheckoutModal';
+import type { Product, SelectedAddon } from '@/data/menuData';
 
 export default function AdminPDV() {
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const [cart, setCart] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
+  
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
+  
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-  const addToCart = (product: any) => {
-    const existing = cart.find(i => i.id === product.id);
-    if (existing) {
-      setCart(cart.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
+  useEffect(() => {
+    fetchStoreSettings().then(setStoreSettings);
+  }, []);
+
+  const openProductModal = (product: Product) => {
+    if (product.addons && product.addons.length > 0) {
+      setSelectedProduct(product);
     } else {
-      setCart([...cart, { ...product, quantity: 1, addons: [], notes: '' }]);
+      handleAddProduct(product, 1, [], '');
     }
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const handleAddProduct = (product: Product, quantity: number, addons: SelectedAddon[], notes: string) => {
+    const newItemId = Date.now().toString(); // Use unique ID to allow multiple instances of same product with different addons
+    
+    setCart([...cart, {
+      cartItemId: newItemId,
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity,
+      addons,
+      notes
+    }]);
+    
+    setSelectedProduct(null);
+  };
+
+  const updateQuantity = (cartItemId: string, delta: number) => {
     setCart(cart.map(i => {
-      if (i.id === id) {
+      if (i.cartItemId === cartItemId) {
         const newQ = i.quantity + delta;
         return newQ > 0 ? { ...i, quantity: newQ } : null;
       }
@@ -29,10 +56,18 @@ export default function AdminPDV() {
     }).filter(Boolean));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const removeCartItem = (cartItemId: string) => {
+    setCart(cart.filter(i => i.cartItemId !== cartItemId));
+  };
+
+  const subtotal = cart.reduce((sum, item) => {
+    const addonsTotal = item.addons.reduce((s: number, a: SelectedAddon) => s + (Number(a.addon.price) * a.quantity), 0);
+    return sum + ((Number(item.price) + addonsTotal) * item.quantity);
+  }, 0);
+  
   const total = Math.max(0, subtotal - discount);
 
-  const handleCheckout = async () => {
+  const handleConfirmOrder = async (checkoutData: any) => {
     if (cart.length === 0) return;
     
     const orderData = {
@@ -41,30 +76,36 @@ export default function AdminPDV() {
         productName: item.name,
         productPrice: item.price,
         quantity: item.quantity,
-        addons: [],
-        notes: ''
+        addons: item.addons.map((sa: SelectedAddon) => ({
+          name: sa.addon.name,
+          price: sa.addon.price,
+          quantity: sa.quantity
+        })),
+        notes: item.notes
       })),
-      total,
-      status: 'pronto',
-      customerName: 'Balcão',
-      customerWhatsApp: '',
-      consumeType: 'Balcão',
-      paymentMethod: 'Dinheiro',
-      deliveryFee: 0,
-      discountAmount: discount,
-      origin: 'balcao'
+      total: total + (checkoutData.deliveryFee || 0),
+      status: 'recebido',
+      customerName: checkoutData.customerName,
+      customerWhatsApp: checkoutData.customerWhatsApp,
+      consumeType: checkoutData.consumeType.toLowerCase(),
+      paymentMethod: checkoutData.paymentMethod,
+      address: checkoutData.address,
+      deliveryFee: checkoutData.deliveryFee,
+      discountAmount: checkoutData.discountAmount,
+      origin: 'pdv'
     };
 
     try {
-      const response = await fetch('http://localhost:3000/api/orders', {
+      const response = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData)
       });
       if (response.ok) {
-        alert('Pedido de balcão registrado!');
+        alert('Pedido registrado com sucesso no sistema!');
         setCart([]);
         setDiscount(0);
+        setIsCheckoutOpen(false);
       } else {
         alert('Erro ao registrar pedido');
       }
@@ -79,7 +120,7 @@ export default function AdminPDV() {
         <h2 className="text-xl font-bold">Catálogo (Frente de Caixa)</h2>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map(p => (
-            <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => addToCart(p)}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openProductModal(p)}>
               <div className="aspect-square bg-muted">
                 {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}
               </div>
@@ -104,24 +145,50 @@ export default function AdminPDV() {
               <p className="text-muted-foreground text-center py-4">Carrinho vazio</p>
             ) : (
               <div className="space-y-3">
-                {cart.map(item => (
-                  <div key={item.id} className="flex justify-between items-center text-sm">
-                    <div className="flex-1">
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-muted-foreground">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                {cart.map(item => {
+                  const addonsTotal = item.addons.reduce((s: number, a: SelectedAddon) => s + (Number(a.addon.price) * a.quantity), 0);
+                  const itemTotal = (Number(item.price) + addonsTotal) * item.quantity;
+                  
+                  return (
+                    <div key={item.cartItemId} className="flex flex-col text-sm border-b pb-2">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-muted-foreground font-bold">R$ {itemTotal.toFixed(2)}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, -1)}>
+                            <Minus size={12} />
+                          </Button>
+                          <span className="w-4 text-center">{item.quantity}</span>
+                          <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, 1)}>
+                            <Plus size={12} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeCartItem(item.cartItemId)}>
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {item.addons.length > 0 && (
+                        <div className="mt-1 pl-2 border-l-2 border-muted">
+                          {item.addons.map((a: SelectedAddon, idx: number) => (
+                            <p key={idx} className="text-xs text-muted-foreground">
+                              + {a.quantity}x {a.addon.name} (R$ {(Number(a.addon.price) * a.quantity).toFixed(2)})
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {item.notes && (
+                        <p className="mt-1 text-xs text-orange-600 bg-orange-50 p-1 rounded">
+                          Obs: {item.notes}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}>
-                        <Minus size={12} />
-                      </Button>
-                      <span>{item.quantity}</span>
-                      <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, 1)}>
-                        <Plus size={12} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <div className="pt-3 border-t space-y-2">
+                  );
+                })}
+                
+                <div className="pt-2 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal:</span>
                     <span>R$ {subtotal.toFixed(2)}</span>
@@ -132,7 +199,7 @@ export default function AdminPDV() {
                       type="number" 
                       value={discount} 
                       onChange={e => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))} 
-                      className="w-20 p-1 border rounded text-right"
+                      className="w-20 p-1 border rounded text-right bg-background focus:ring-primary"
                     />
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t">
@@ -140,13 +207,29 @@ export default function AdminPDV() {
                     <span>R$ {total.toFixed(2)}</span>
                   </div>
                 </div>
-                <Button className="w-full mt-4" onClick={handleCheckout}>Finalizar Venda (Balcão)</Button>
+                
+                <Button className="w-full mt-4" onClick={() => setIsCheckoutOpen(true)}>Avançar</Button>
                 <Button variant="outline" className="w-full mt-2" onClick={() => setCart([])}>Cancelar</Button>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <PDVProductModal 
+        product={selectedProduct} 
+        onClose={() => setSelectedProduct(null)}
+        onAdd={handleAddProduct}
+      />
+
+      <PDVCheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onConfirm={handleConfirmOrder}
+        total={total}
+        discount={discount}
+        storeSettings={storeSettings}
+      />
     </div>
   );
 }
