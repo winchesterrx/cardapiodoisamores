@@ -87,7 +87,12 @@ function getCategoryInfo(idOrLabel: string) {
 
 function formatCurrency(v: number) { return `R$ ${Number(v).toFixed(2)}`; }
 function formatDate(d: string) {
-  const dt = new Date(d + "T12:00:00");
+  if (!d) return "—";
+  // A API pode retornar ISO completo (ex: "2026-08-04T00:00:00.000Z") ou apenas "YYYY-MM-DD"
+  // Extraímos só a parte da data para evitar "Invalid Date"
+  const datePart = d.includes("T") ? d.split("T")[0] : d;
+  const dt = new Date(datePart + "T12:00:00");
+  if (isNaN(dt.getTime())) return d; // fallback: mostra o valor bruto
   return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
