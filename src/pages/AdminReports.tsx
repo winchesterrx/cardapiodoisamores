@@ -794,7 +794,7 @@ export default function AdminReports() {
 
         {/* ══ TAB: ENTREGADORES ══ */}
         <TabsContent value="couriers" className="space-y-5">
-          <CourierReport orders={filteredOrders} dateRange={dateRange} />
+          <CourierReport orders={orders} />
         </TabsContent>
 
       </Tabs>
@@ -843,15 +843,44 @@ function exportCourierCSV(couriers: CourierSummary[], mode: "detailed" | "synthe
   a.click();
 }
 
-function CourierReport({ orders, dateRange }: { orders: Order[]; dateRange: { start: Date; end: Date } }) {
+function CourierReport({ orders }: { orders: Order[] }) {
   const [reportMode, setReportMode] = useState<"synthetic" | "detailed">("synthetic");
   const [expandedCourier, setExpandedCourier] = useState<string | null>(null);
 
-  // Filtra somente pedidos de entrega com entregador e não cancelados
-  const deliveryOrders = useMemo(
-    () => orders.filter(o => o.consumeType === "Entrega" && o.courierName && o.status !== "cancelado"),
-    [orders]
-  );
+  // Seletor de data próprio (independente do filtro global)
+  const [courierPreset, setCourierPreset] = useState<"today" | "7d" | "30d" | "this_month">("today");
+
+  const courierDateRange = useMemo(() => {
+    const now = new Date();
+    let start = new Date(now);
+    let end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    if (courierPreset === "today") {
+      start.setHours(0, 0, 0, 0);
+    } else if (courierPreset === "7d") {
+      start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0);
+    } else if (courierPreset === "30d") {
+      start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0);
+    } else if (courierPreset === "this_month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+    return { start, end };
+  }, [courierPreset]);
+
+  const dateLabel = `${courierDateRange.start.toLocaleDateString("pt-BR")} – ${courierDateRange.end.toLocaleDateString("pt-BR")}`;
+
+  // Filtra pedidos de entrega COM entregador, não cancelados, no período selecionado
+  // consumeType comparado sem case (pode vir como "entrega" ou "Entrega")
+  const deliveryOrders = useMemo(() => {
+    return orders.filter(o => {
+      const isDelivery = (o.consumeType || "").toLowerCase() === "entrega";
+      const hasCourier = !!(o.courierName && o.courierName.trim());
+      const notCancelled = o.status !== "cancelado";
+      const d = new Date(o.createdAt);
+      const inRange = d >= courierDateRange.start && d <= courierDateRange.end;
+      return isDelivery && hasCourier && notCancelled && inRange;
+    });
+  }, [orders, courierDateRange]);
 
   // Agrupa por entregador
   const couriers = useMemo(() => {
@@ -872,8 +901,6 @@ function CourierReport({ orders, dateRange }: { orders: Order[]; dateRange: { st
   const grandTotal = couriers.reduce((s, c) => s + c.totalFee, 0);
   const grandQty = couriers.reduce((s, c) => s + c.deliveries.length, 0);
 
-  const dateLabel = `${dateRange.start.toLocaleDateString("pt-BR")} – ${dateRange.end.toLocaleDateString("pt-BR")}`;
-
   return (
     <div className="space-y-5">
 
@@ -888,7 +915,29 @@ function CourierReport({ orders, dateRange }: { orders: Order[]; dateRange: { st
             <p className="text-xs text-muted-foreground">{dateLabel}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seletor de período */}
+          <div className="flex bg-muted rounded-xl p-1 gap-1">
+            {([
+              { value: "today", label: "Hoje" },
+              { value: "7d", label: "7 dias" },
+              { value: "30d", label: "30 dias" },
+              { value: "this_month", label: "Este mês" },
+            ] as const).map(p => (
+              <button
+                key={p.value}
+                onClick={() => setCourierPreset(p.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  courierPreset === p.value
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           {/* Toggle Sintético / Detalhado */}
           <div className="flex bg-muted rounded-xl p-1 gap-1">
             <button
