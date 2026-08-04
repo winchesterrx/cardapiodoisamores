@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Trash2, Camera, FileText, X, Save, Loader2, Receipt,
-  TrendingDown, PackageSearch, ChevronDown, ChevronUp, AlertTriangle,
-  Download, Filter, Search, BarChart2, Zap, Check, Edit2, Copy, Calendar
+  TrendingDown, PackageSearch, AlertTriangle,
+  Download, Search, BarChart2, Zap, Check, Copy, Calendar,
+  Building2, Scale, Hash, ShoppingBag, Sparkles, CheckCircle2
 } from "lucide-react";
 import { API_URL } from "@/data/menuData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +48,7 @@ interface ExpenseFormItem {
   date: string;
   category: string;
   description: string;
+  size: string;        // tamanho / quantidade (ex: 10kg, 500g, 100un)
   amount: string;
   isEditing?: boolean;
 }
@@ -124,9 +126,11 @@ export default function AdminExpenses() {
 
   // ── Form State ──
   const [formItems, setFormItems] = useState<ExpenseFormItem[]>([
-    { id: uid(), date: todayStr(), category: "materia-prima", description: "", amount: "" }
+    { id: uid(), date: todayStr(), category: "materia-prima", description: "", size: "", amount: "" }
   ]);
-  const [noteRef, setNoteRef] = useState("");
+  const [supplier, setSupplier] = useState("");    // fornecedor da nota
+  const [noteRef, setNoteRef] = useState("");       // referência / número da nota
+  const [noteDate, setNoteDate] = useState(todayStr()); // data única da nota
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -215,7 +219,7 @@ export default function AdminExpenses() {
   const addEmptyItem = () => {
     const last = formItems[formItems.length - 1];
     setFormItems(prev => [...prev, {
-      id: uid(), date: last?.date || todayStr(), category: last?.category || "materia-prima", description: "", amount: ""
+      id: uid(), date: noteDate, category: last?.category || "materia-prima", description: "", size: "", amount: ""
     }]);
   };
 
@@ -227,11 +231,10 @@ export default function AdminExpenses() {
   const addQuickItem = (item: typeof QUICK_ITEMS[0]) => {
     setFormItems(prev => {
       const last = prev[prev.length - 1];
-      // If last item is empty, replace it
       if (!last.description && !last.amount) {
-        return prev.slice(0, -1).concat({ id: uid(), date: last.date, category: item.category, description: item.description, amount: "" });
+        return prev.slice(0, -1).concat({ id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: "" });
       }
-      return [...prev, { id: uid(), date: last.date, category: item.category, description: item.description, amount: "" }];
+      return [...prev, { id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: "" }];
     });
     setShowQuickAdd(false);
   };
@@ -241,8 +244,10 @@ export default function AdminExpenses() {
   };
 
   const clearForm = () => {
-    setFormItems([{ id: uid(), date: todayStr(), category: "materia-prima", description: "", amount: "" }]);
+    setFormItems([{ id: uid(), date: todayStr(), category: "materia-prima", description: "", size: "", amount: "" }]);
+    setSupplier("");
     setNoteRef("");
+    setNoteDate(todayStr());
     setSaveMsg(null);
   };
 
@@ -250,11 +255,16 @@ export default function AdminExpenses() {
     const valid = formItems.filter(i => i.description.trim() && parseFloat(i.amount) > 0);
     if (valid.length === 0) { setSaveMsg({ type: "err", text: "Preencha ao menos um item com descrição e valor." }); return; }
     setSaving(true); setSaveMsg(null);
+    // Monta a referência completa com fornecedor
+    const fullRef = [supplier.trim() && `Fornecedor: ${supplier.trim()}`, noteRef.trim()].filter(Boolean).join(" | ") || null;
     try {
       const res = await fetch(`${API_URL}/expenses`, {
         method: "POST",
         headers: getAuthHeader(token),
-        body: JSON.stringify({ items: valid.map(i => ({ ...i, amount: parseFloat(i.amount) })), note_ref: noteRef || null })
+        body: JSON.stringify({
+          items: valid.map(i => ({ ...i, date: noteDate, amount: parseFloat(i.amount) })),
+          note_ref: fullRef
+        })
       });
       if (!res.ok) throw new Error();
       setSaveMsg({ type: "ok", text: `✅ ${valid.length} item(ns) lançado(s) com sucesso!` });
@@ -295,7 +305,6 @@ export default function AdminExpenses() {
       setOcrPhase("Analisando valores...");
       const lines = text.split("\n").filter(l => l.trim().length > 2);
       const parsed: ExpenseFormItem[] = [];
-      const today = todayStr();
       const moneyRegex = /R?\$?\s*(\d{1,4}[,.]?\d{0,2})/gi;
       for (const line of lines) {
         const matches = [...line.matchAll(moneyRegex)];
@@ -304,7 +313,7 @@ export default function AdminExpenses() {
           const amount = parseFloat(rawAmount);
           const desc = line.replace(moneyRegex, "").replace(/[-:R$]/g, "").trim();
           if (desc.length > 1 && amount > 0 && amount < 100000) {
-            parsed.push({ id: uid(), date: today, category: "materia-prima", description: desc, amount: rawAmount });
+            parsed.push({ id: uid(), date: noteDate, category: "materia-prima", description: desc, size: "", amount: rawAmount });
           }
         }
       }
@@ -323,7 +332,7 @@ export default function AdminExpenses() {
     if (valid.length > 0) {
       setFormItems(prev => {
         const nonEmpty = prev.filter(i => i.description.trim());
-        return [...nonEmpty, ...valid];
+        return [...nonEmpty, ...valid.map(s => ({ ...s, size: s.size || "" }))];
       });
     }
     setShowOcrModal(false);
@@ -459,38 +468,78 @@ export default function AdminExpenses() {
       {activeSection === "form" && (
         <div className="space-y-4">
 
-          {/* Note Reference + OCR */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-              <div className="flex-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">Referência da Nota</label>
-                <input value={noteRef} onChange={e => setNoteRef(e.target.value)}
-                  placeholder="Ex: Nota Atacadão 03/08, Mercado Leal 01/08..."
-                  className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          {/* ── Cabeçalho da Nota ── */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-gradient-to-r from-rose-500/5 to-orange-500/5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow">
+                <ShoppingBag className="text-white" size={18} />
               </div>
-              <div className="flex gap-2">
+              <div>
+                <p className="font-bold text-foreground text-sm">Nova Requisição de Entrada</p>
+                <p className="text-xs text-muted-foreground">Preencha o cabeçalho e depois adicione os itens da nota</p>
+              </div>
+              <div className="ml-auto flex gap-2">
                 <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                 <button onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-3 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm">
-                  <Camera size={16} /> 📷 Ler Nota (OCR)
+                  className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800 px-3 py-2 rounded-xl text-xs font-semibold transition-colors">
+                  <Camera size={14} /> Ler Nota
                 </button>
                 <button onClick={() => setShowQuickAdd(!showQuickAdd)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-3 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm">
-                  <Zap size={16} /> Itens Rápidos
+                  className="flex items-center gap-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-800 px-3 py-2 rounded-xl text-xs font-semibold transition-colors">
+                  <Sparkles size={14} /> Atalhos
                 </button>
               </div>
             </div>
 
-            {/* Quick Add Panel */}
+            <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Fornecedor */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Building2 size={12} /> Fornecedor
+                </label>
+                <input
+                  value={supplier}
+                  onChange={e => setSupplier(e.target.value)}
+                  placeholder="Ex: Atacadão, Mercado Leal..."
+                  className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/60"
+                />
+              </div>
+              {/* Data da Nota */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Calendar size={12} /> Data da Nota
+                </label>
+                <input
+                  type="date"
+                  value={noteDate}
+                  onChange={e => setNoteDate(e.target.value)}
+                  className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              {/* Referência/NF */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Hash size={12} /> Referência / Nº NF
+                </label>
+                <input
+                  value={noteRef}
+                  onChange={e => setNoteRef(e.target.value)}
+                  placeholder="Ex: NF-001, 03/08..."
+                  className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/60"
+                />
+              </div>
+            </div>
+
+            {/* Atalhos rápidos */}
             {showQuickAdd && (
-              <div className="bg-muted/30 rounded-xl p-4 animate-in fade-in slide-in-from-top-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Clique para adicionar ao formulário:</p>
+              <div className="mx-5 mb-5 bg-purple-500/5 border border-purple-200 dark:border-purple-900 rounded-xl p-4 animate-in fade-in slide-in-from-top-1">
+                <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-3">Clique para adicionar ao formulário:</p>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_ITEMS.map((item, i) => {
                     const cat = getCategoryInfo(item.category);
                     return (
                       <button key={i} onClick={() => addQuickItem(item)}
-                        className="flex items-center gap-1.5 text-xs font-medium bg-card border border-border rounded-full px-3 py-1.5 hover:border-primary hover:text-primary transition-colors">
+                        className="flex items-center gap-1.5 text-xs font-medium bg-card border border-border rounded-full px-3 py-1.5 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors">
                         <span>{cat.icon}</span> {item.description}
                       </button>
                     );
@@ -500,84 +549,149 @@ export default function AdminExpenses() {
             )}
           </div>
 
-          {/* Items List */}
-          <div className="space-y-3">
-            {formItems.map((item, idx) => {
-              const cat = getCategoryInfo(item.category);
-              return (
-                <div key={item.id} className="bg-card border border-border rounded-2xl p-4 transition-all hover:border-primary/40 group">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-base">{cat.icon}</span>
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Item {idx + 1}</span>
-                    <div className="flex-1 h-px bg-border" />
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => duplicateItem(item)} title="Duplicar"
-                        className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/10 transition-colors">
-                        <Copy size={14} />
-                      </button>
-                      <button onClick={() => removeItem(item.id)} disabled={formItems.length === 1}
-                        className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-30">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-12 md:col-span-2">
-                      <label className="text-xs text-muted-foreground block mb-1">Data</label>
-                      <input type="date" value={item.date} onChange={e => updateItem(item.id, "date", e.target.value)}
-                        className="w-full border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                    </div>
+          {/* ── Tabela de Itens ── */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            {/* Cabeçalho da tabela */}
+            <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 bg-muted/40 border-b border-border">
+              <div className="col-span-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Categoria</div>
+              <div className="col-span-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descrição *</div>
+              <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tam. / Qtd.</div>
+              <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valor (R$) *</div>
+              <div className="col-span-1" />
+            </div>
+
+            <div className="divide-y divide-border">
+              {formItems.map((item, idx) => {
+                const cat = getCategoryInfo(item.category);
+                const isValid = item.description.trim() && parseFloat(item.amount) > 0;
+                return (
+                  <div
+                    key={item.id}
+                    className={`group grid grid-cols-12 gap-2 px-4 py-3 items-center transition-colors ${
+                      isValid ? "bg-emerald-500/2" : "hover:bg-muted/20"
+                    }`}
+                  >
+                    {/* Categoria */}
                     <div className="col-span-12 md:col-span-3">
-                      <label className="text-xs text-muted-foreground block mb-1">Categoria</label>
-                      <select value={item.category} onChange={e => updateItem(item.id, "category", e.target.value)}
-                        className="w-full border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                      <label className="md:hidden text-xs text-muted-foreground block mb-1">Categoria</label>
+                      <select
+                        value={item.category}
+                        onChange={e => updateItem(item.id, "category", e.target.value)}
+                        className="w-full border border-border rounded-xl px-2.5 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
                         {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
                       </select>
                     </div>
-                    <div className="col-span-12 md:col-span-5">
-                      <label className="text-xs text-muted-foreground block mb-1">Descrição do Item *</label>
-                      <input value={item.description} onChange={e => updateItem(item.id, "description", e.target.value)}
-                        placeholder="Ex: Açaí 10kg, Nutella 500g, Copos 300ml (100un)..."
-                        className="w-full border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+
+                    {/* Descrição */}
+                    <div className="col-span-12 md:col-span-4">
+                      <label className="md:hidden text-xs text-muted-foreground block mb-1">Descrição *</label>
+                      <input
+                        value={item.description}
+                        onChange={e => updateItem(item.id, "description", e.target.value)}
+                        placeholder="Ex: Açaí, Nutella, Copos..."
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
+                      />
                     </div>
-                    <div className="col-span-12 md:col-span-2">
-                      <label className="text-xs text-muted-foreground block mb-1">Valor (R$) *</label>
+
+                    {/* Tamanho / Quantidade */}
+                    <div className="col-span-5 md:col-span-2">
+                      <label className="md:hidden text-xs text-muted-foreground block mb-1">Tam./Qtd.</label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
-                        <input type="number" step="0.01" min="0" value={item.amount} onChange={e => updateItem(item.id, "amount", e.target.value)}
-                          placeholder="0,00"
-                          className="w-full border border-border rounded-xl p-2.5 pl-9 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                        <Scale size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          value={item.size}
+                          onChange={e => updateItem(item.id, "size", e.target.value)}
+                          placeholder="10kg"
+                          className="w-full border border-border rounded-xl pl-7 pr-2 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
+                        />
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Form Footer */}
-          <div className="bg-card border border-border rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button onClick={addEmptyItem}
-                className="flex items-center gap-2 text-sm font-medium text-primary border border-primary/30 bg-primary/5 rounded-xl px-4 py-2.5 hover:bg-primary/10 transition-colors">
-                <Plus size={16} /> Adicionar Item
-              </button>
-              <div className="text-sm text-muted-foreground">
-                {formItems.filter(i => i.description && i.amount).length} item(ns) · Total:
-                <span className="font-bold text-foreground ml-1">{formatCurrency(formTotal)}</span>
+                    {/* Valor */}
+                    <div className="col-span-5 md:col-span-2">
+                      <label className="md:hidden text-xs text-muted-foreground block mb-1">Valor *</label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-semibold">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.amount}
+                          onChange={e => updateItem(item.id, "amount", e.target.value)}
+                          placeholder="0,00"
+                          className="w-full border border-border rounded-xl pl-8 pr-2 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1">
+                      {isValid && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
+                      <button
+                        onClick={() => duplicateItem(item)}
+                        title="Duplicar"
+                        className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        disabled={formItems.length === 1}
+                        className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-20 opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rodapé da tabela */}
+            <div className="px-4 py-3 border-t border-border bg-muted/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={addEmptyItem}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl px-3 py-2 transition-colors"
+                >
+                  <Plus size={14} /> Adicionar Item
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  {formItems.filter(i => i.description && i.amount).length} item(ns) válido(s)
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Total da Nota:</span>
+                <span className="text-lg font-black text-foreground">{formatCurrency(formTotal)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <button onClick={clearForm} className="text-sm text-muted-foreground hover:text-foreground border border-border rounded-xl px-4 py-2.5 hover:bg-muted transition-colors">
-                Limpar Tudo
-              </button>
+          </div>
+
+          {/* ── Ações da Nota ── */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <button
+              onClick={clearForm}
+              className="text-sm text-muted-foreground hover:text-foreground border border-border rounded-xl px-4 py-2.5 hover:bg-muted transition-colors"
+            >
+              Limpar tudo
+            </button>
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               {saveMsg && (
-                <span className={`text-sm font-semibold ${saveMsg.type === "ok" ? "text-emerald-600" : "text-destructive"}`}>{saveMsg.text}</span>
+                <span className={`text-sm font-semibold flex items-center gap-1.5 ${
+                  saveMsg.type === "ok" ? "text-emerald-600" : "text-destructive"
+                }`}>
+                  {saveMsg.type === "ok" ? <CheckCircle2 size={15} /> : null}
+                  {saveMsg.text}
+                </span>
               )}
-              <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-orange-500 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-opacity shadow-md">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-orange-500 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md shadow-rose-500/20"
+              >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? "Salvando..." : `Salvar Nota (${formatCurrency(formTotal)})`}
+                {saving ? "Salvando..." : `Salvar Nota — ${formatCurrency(formTotal)}`}
               </button>
             </div>
           </div>
