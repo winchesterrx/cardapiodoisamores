@@ -869,17 +869,23 @@ function CourierReport({ orders }: { orders: Order[] }) {
 
   const dateLabel = `${courierDateRange.start.toLocaleDateString("pt-BR")} – ${courierDateRange.end.toLocaleDateString("pt-BR")}`;
 
-  // Filtra pedidos de entrega COM entregador, não cancelados, no período selecionado
-  // consumeType comparado sem case (pode vir como "entrega" ou "Entrega")
+  // Filtra pedidos COM entregador atribuído, não cancelados, no período
+  // Usa courierName como sinal principal (não depende de consumeType)
   const deliveryOrders = useMemo(() => {
-    return orders.filter(o => {
-      const isDelivery = (o.consumeType || "").toLowerCase() === "entrega";
+    const result = orders.filter(o => {
       const hasCourier = !!(o.courierName && o.courierName.trim());
       const notCancelled = o.status !== "cancelado";
       const d = new Date(o.createdAt);
       const inRange = d >= courierDateRange.start && d <= courierDateRange.end;
-      return isDelivery && hasCourier && notCancelled && inRange;
+      return hasCourier && notCancelled && inRange;
     });
+    if (orders.length > 0) {
+      console.log("[CourierReport] Total orders:", orders.length, "| Found:", result.length);
+      console.log("[CourierReport] Sample:", orders.slice(0,3).map(o => ({
+        consumeType: o.consumeType, courierName: o.courierName, status: o.status, createdAt: o.createdAt
+      })));
+    }
+    return result;
   }, [orders, courierDateRange]);
 
   // Agrupa por entregador
