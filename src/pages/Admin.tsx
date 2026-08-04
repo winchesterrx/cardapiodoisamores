@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogIn, LogOut, Plus, Pencil, Trash2, BarChart3, Package, Star, Settings,
   ChevronLeft, LayoutGrid, ListPlus, ClipboardList, CheckCircle2, Clock,
-  Truck, XCircle, Printer, MessageCircle, Eye, Award, X, Tag, Store, Users
+  Truck, XCircle, Printer, MessageCircle, Eye, Award, X, Tag, Store, Users, TrendingDown
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +18,7 @@ import AdminCoupons from "./AdminCoupons";
 import AdminReports from "./AdminReports";
 import AdminCouriers from "./AdminCouriers";
 import AdminPDV from "./AdminPDV";
+import AdminExpenses from "./AdminExpenses";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -59,7 +60,7 @@ export default function Admin() {
   const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
   const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
   const { data: brands = [], refetch: refetchBrands } = useQuery({ queryKey: ['brands'], queryFn: fetchBrands });
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports" | "couriers" | "pdv">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports" | "couriers" | "pdv" | "expenses">("orders");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -353,6 +354,7 @@ export default function Admin() {
           { key: "promos", label: "Promoções", icon: Star },
           { key: "loyalty", label: "Fidelidade", icon: Award },
           { key: "coupons", label: "Cupons", icon: Tag },
+          { key: "expenses", label: "Despesas", icon: TrendingDown },
           { key: "reports", label: "Relatórios", icon: BarChart3 },
           { key: "settings", label: "Configurações", icon: Settings },
         ].map(({ key, label, icon: Icon }) => (
@@ -1109,6 +1111,11 @@ export default function Admin() {
         )}
         {activeTab === "couriers" && <AdminCouriers />}
         {activeTab === "pdv" && <AdminPDV />}
+        {activeTab === "expenses" && (
+          <div className="bg-card rounded-xl shadow-card p-6">
+            <AdminExpenses />
+          </div>
+        )}
       </div>
     </div>
   );

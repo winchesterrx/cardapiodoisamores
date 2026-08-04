@@ -1,16 +1,18 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchOrders, fetchCoupons, Order, Coupon } from "@/data/menuData";
-import { BarChart3, TrendingUp, DollarSign, ShoppingBag, Users, Calendar, Ticket, Percent } from "lucide-react";
+import { fetchOrders, fetchCoupons, Order, Coupon, API_URL } from "@/data/menuData";
+import { useAuth } from "@/contexts/AuthContext";
+import { BarChart3, TrendingUp, DollarSign, ShoppingBag, Users, Calendar, Ticket, Percent, TrendingDown, Wallet } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, BarChart, Bar
 } from "recharts";
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 export default function AdminReports() {
+  const { token } = useAuth();
   const { data: orders = [] } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
   const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
 
@@ -48,6 +50,22 @@ export default function AdminReports() {
 
     return { start, end };
   }, [datePreset, customStart, customEnd]);
+
+  // Fetch expenses for the same period
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses', dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]],
+    queryFn: async () => {
+      const s = dateRange.start.toISOString().split('T')[0];
+      const e = dateRange.end.toISOString().split('T')[0];
+      const res = await fetch(`${API_URL}/expenses?start=${s}&end=${e}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) return [];
+      return res.json();
+    }
+  });
+
+  const totalExpenses = useMemo(() => expenses.reduce((s: number, e: any) => s + Number(e.amount), 0), [expenses]);
 
   // Filter orders
   const filteredOrders = useMemo(() => {
@@ -227,6 +245,34 @@ export default function AdminReports() {
 
         <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
+             <p className="text-sm text-muted-foreground font-medium">Total Despesas</p>
+             <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+               <TrendingDown size={18} />
+             </div>
+          </div>
+          <p className="text-3xl font-bold text-rose-500">R$ {totalExpenses.toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start mb-2">
+             <p className="text-sm text-muted-foreground font-medium">Lucro Líquido</p>
+             <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+               metrics.totalRevenue - totalExpenses >= 0 
+                 ? 'bg-emerald-500/10 text-emerald-500' 
+                 : 'bg-red-500/10 text-red-500'
+             }`}>
+               <Wallet size={18} />
+             </div>
+          </div>
+          <p className={`text-3xl font-bold ${
+            metrics.totalRevenue - totalExpenses >= 0 ? 'text-emerald-500' : 'text-red-500'
+          }`}>
+            R$ {(metrics.totalRevenue - totalExpenses).toFixed(2)}
+          </p>
+        </div>
+
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start mb-2">
              <p className="text-sm text-muted-foreground font-medium">Ticket Médio</p>
              <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
                <TrendingUp size={18} />
@@ -234,32 +280,13 @@ export default function AdminReports() {
           </div>
           <p className="text-3xl font-bold text-foreground">R$ {metrics.averageTicket.toFixed(2)}</p>
         </div>
-
-        <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-             <p className="text-sm text-muted-foreground font-medium">Total de Pedidos</p>
-             <div className="h-8 w-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500">
-               <ShoppingBag size={18} />
-             </div>
-          </div>
-          <p className="text-3xl font-bold text-foreground">{metrics.totalOrders}</p>
-        </div>
-
-        <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-             <p className="text-sm text-muted-foreground font-medium">Descontos (Cupons)</p>
-             <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
-               <Percent size={18} />
-             </div>
-          </div>
-          <p className="text-3xl font-bold text-foreground">R$ {metrics.totalDiscounts.toFixed(2)}</p>
-        </div>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1 mb-6 rounded-xl">
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1 mb-6 rounded-xl">
           <TabsTrigger value="overview" className="rounded-lg">Visão Geral</TabsTrigger>
+          <TabsTrigger value="financeiro" className="rounded-lg">💰 Financeiro</TabsTrigger>
           <TabsTrigger value="products" className="rounded-lg">Produtos</TabsTrigger>
           <TabsTrigger value="customers" className="rounded-lg">Clientes</TabsTrigger>
           <TabsTrigger value="coupons" className="rounded-lg">Cupons</TabsTrigger>
@@ -327,6 +354,88 @@ export default function AdminReports() {
                  </div>
               </div>
            </div>
+        </TabsContent>
+
+        {/* TAB: FINANCEIRO */}
+        <TabsContent value="financeiro" className="space-y-6">
+          <div className="bg-card border border-border rounded-xl shadow-sm p-5">
+            <h3 className="font-semibold text-lg text-foreground mb-6">Receita vs Despesas por Dia</h3>
+            {(() => {
+              // Build combined chart data
+              const revenueMap: Record<string, number> = {};
+              const expenseMap: Record<string, number> = {};
+              metrics.chartData.forEach((d: any) => { revenueMap[d.date] = d.total; });
+              expenses.forEach((e: any) => {
+                const d = new Date(e.date + 'T00:00:00');
+                const key = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                expenseMap[key] = (expenseMap[key] || 0) + Number(e.amount);
+              });
+              const allKeys = Array.from(new Set([...Object.keys(revenueMap), ...Object.keys(expenseMap)])).sort((a,b) => {
+                const [d1,m1] = a.split('/'); const [d2,m2] = b.split('/');
+                if (m1 !== m2) return Number(m1) - Number(m2);
+                return Number(d1) - Number(d2);
+              });
+              const chartData = allKeys.map(k => ({ date: k, receita: revenueMap[k] || 0, despesa: expenseMap[k] || 0, lucro: (revenueMap[k] || 0) - (expenseMap[k] || 0) }));
+              return (
+                <div className="h-[320px] w-full">
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <RechartsTooltip formatter={(v: number, name: string) => [`R$ ${Number(v).toFixed(2)}`, name === 'receita' ? 'Receita' : name === 'despesa' ? 'Despesa' : 'Lucro']} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
+                        <Legend formatter={(v) => v === 'receita' ? 'Receita' : v === 'despesa' ? 'Despesa' : 'Lucro'} />
+                        <Bar dataKey="receita" fill="#10b981" radius={[4,4,0,0]} />
+                        <Bar dataKey="despesa" fill="#ef4444" radius={[4,4,0,0]} />
+                        <Bar dataKey="lucro" fill="#3b82f6" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <div className="h-full flex items-center justify-center text-muted-foreground">Lance despesas para ver o gráfico financeiro.</div>}
+                </div>
+              );
+            })()}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl shadow-sm p-5">
+              <h3 className="font-semibold text-lg text-foreground mb-4">Despesas por Categoria</h3>
+              {(() => {
+                const catMap: Record<string, number> = {};
+                expenses.forEach((e: any) => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount); });
+                const pieData = Object.entries(catMap).map(([name, value]) => ({ name, value }));
+                return pieData.length > 0 ? (
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                          {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Pie>
+                        <RechartsTooltip formatter={(v: number) => [`R$ ${Number(v).toFixed(2)}`, 'Gasto']} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">Nenhuma despesa no período.</div>;
+              })()}
+            </div>
+            <div className="bg-card border border-border rounded-xl shadow-sm p-5">
+              <h3 className="font-semibold text-lg text-foreground mb-4">Resumo Financeiro</h3>
+              <div className="space-y-4">
+                {[{ label: 'Receita Bruta', value: metrics.totalRevenue, color: 'text-emerald-500' },
+                  { label: 'Total de Despesas', value: totalExpenses, color: 'text-rose-500' },
+                  { label: 'Lucro Líquido', value: metrics.totalRevenue - totalExpenses, color: metrics.totalRevenue - totalExpenses >= 0 ? 'text-blue-500' : 'text-red-600' },
+                  { label: 'Margem de Lucro', value: metrics.totalRevenue > 0 ? ((metrics.totalRevenue - totalExpenses) / metrics.totalRevenue * 100) : 0, color: 'text-purple-500', isPercent: true }
+                ].map(item => (
+                  <div key={item.label} className="flex justify-between items-center border-b border-border pb-3 last:border-0">
+                    <span className="text-sm text-muted-foreground">{item.label}</span>
+                    <span className={`text-lg font-bold ${item.color}`}>
+                      {(item as any).isPercent ? `${item.value.toFixed(1)}%` : `R$ ${item.value.toFixed(2)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         {/* TAB 2: PRODUTOS */}

@@ -515,6 +515,58 @@ app.post('/api/calculate-delivery', async (req, res) => {
   }
 });
 
+// ── Expenses ──
+app.get('/api/expenses', authenticateToken, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    let query = 'SELECT * FROM expenses';
+    const params = [];
+    if (start && end) {
+      query += ' WHERE date >= ? AND date <= ?';
+      params.push(start, end);
+    }
+    query += ' ORDER BY date DESC, created_at DESC';
+    const [rows] = await db.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar despesas:', error);
+    res.status(500).json({ error: 'Erro ao buscar despesas' });
+  }
+});
+
+app.post('/api/expenses', authenticateToken, async (req, res) => {
+  try {
+    const { items, note_ref } = req.body; // items: [{date, category, description, amount}]
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Nenhum item enviado' });
+    }
+    const inserted = [];
+    for (const item of items) {
+      const { date, category, description, amount } = item;
+      if (!date || !description || !amount) continue;
+      const [result] = await db.query(
+        'INSERT INTO expenses (date, category, description, amount, note_ref) VALUES (?, ?, ?, ?, ?)',
+        [date, category || 'Outros', description, Number(amount), note_ref || null]
+      );
+      inserted.push(result.insertId);
+    }
+    res.status(201).json({ message: `${inserted.length} despesa(s) lançada(s) com sucesso`, ids: inserted });
+  } catch (error) {
+    console.error('Erro ao criar despesa:', error);
+    res.status(500).json({ error: 'Erro ao criar despesa' });
+  }
+});
+
+app.delete('/api/expenses/:id', authenticateToken, async (req, res) => {
+  try {
+    await db.query('DELETE FROM expenses WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Despesa excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir despesa:', error);
+    res.status(500).json({ error: 'Erro ao excluir despesa' });
+  }
+});
+
 // ── Orders ──
 app.get('/api/orders', async (req, res) => {
   try {
