@@ -391,13 +391,13 @@ export default function AdminReports() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="flex w-full overflow-x-auto bg-muted/50 p-1 mb-6 rounded-2xl gap-1 h-auto">
           {[
-            { value: "overview", label: "📈 Visão Geral" },
-            { value: "financeiro", label: "💰 Financeiro" },
-            { value: "products", label: "📦 Produtos" },
-            { value: "timing", label: "⏰ Horários" },
-            { value: "customers", label: "👥 Clientes" },
-            { value: "coupons", label: "🏷️ Cupons" },
-            { value: "couriers", label: "🚵 Entregadores" },
+            { value: "overview", label: "Visão Geral" },
+            { value: "financeiro", label: "Financeiro" },
+            { value: "products", label: "Produtos" },
+            { value: "timing", label: "Horários" },
+            { value: "customers", label: "Clientes" },
+            { value: "coupons", label: "Cupons" },
+            { value: "couriers", label: "Entregadores" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="rounded-xl whitespace-nowrap text-xs font-medium flex-1">{tab.label}</TabsTrigger>
           ))}
@@ -846,8 +846,6 @@ function exportCourierCSV(couriers: CourierSummary[], mode: "detailed" | "synthe
 function CourierReport({ orders }: { orders: Order[] }) {
   const [reportMode, setReportMode] = useState<"synthetic" | "detailed">("synthetic");
   const [expandedCourier, setExpandedCourier] = useState<string | null>(null);
-
-  // Seletor de data próprio (independente do filtro global)
   const [courierPreset, setCourierPreset] = useState<"today" | "7d" | "30d" | "this_month">("today");
 
   const courierDateRange = useMemo(() => {
@@ -869,26 +867,16 @@ function CourierReport({ orders }: { orders: Order[] }) {
 
   const dateLabel = `${courierDateRange.start.toLocaleDateString("pt-BR")} – ${courierDateRange.end.toLocaleDateString("pt-BR")}`;
 
-  // Filtra pedidos COM entregador atribuído, não cancelados, no período
-  // Usa courierName como sinal principal (não depende de consumeType)
   const deliveryOrders = useMemo(() => {
-    const result = orders.filter(o => {
+    return orders.filter(o => {
       const hasCourier = !!(o.courierName && o.courierName.trim());
       const notCancelled = o.status !== "cancelado";
       const d = new Date(o.createdAt);
       const inRange = d >= courierDateRange.start && d <= courierDateRange.end;
       return hasCourier && notCancelled && inRange;
     });
-    if (orders.length > 0) {
-      console.log("[CourierReport] Total orders:", orders.length, "| Found:", result.length);
-      console.log("[CourierReport] Sample:", orders.slice(0,3).map(o => ({
-        consumeType: o.consumeType, courierName: o.courierName, status: o.status, createdAt: o.createdAt
-      })));
-    }
-    return result;
   }, [orders, courierDateRange]);
 
-  // Agrupa por entregador
   const couriers = useMemo(() => {
     const map: Record<string, Order[]> = {};
     deliveryOrders.forEach(o => {
@@ -908,249 +896,290 @@ function CourierReport({ orders }: { orders: Order[] }) {
   const grandQty = couriers.reduce((s, c) => s + c.deliveries.length, 0);
 
   return (
-    <div className="space-y-5">
-
-      {/* Header do relatório */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow">
-            <Bike className="text-white" size={20} />
+    <div className="space-y-4">
+      {/* ── Toolbar Card ── */}
+      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow shrink-0">
+              <Bike className="text-white" size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm">Relatório de Entregas</p>
+              <p className="text-xs text-muted-foreground">{dateLabel}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-foreground">Relatório de Entregas</h3>
-            <p className="text-xs text-muted-foreground">{dateLabel}</p>
-          </div>
+          <button
+            onClick={() => exportCourierCSV(couriers, reportMode)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground border border-border rounded-xl px-3 py-2 hover:bg-muted transition-colors shrink-0"
+          >
+            <Download size={13} /> CSV
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Seletor de período */}
-          <div className="flex bg-muted rounded-xl p-1 gap-1">
-            {([
+
+        {/* Controles */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex bg-muted rounded-xl p-1 gap-0.5">
+            {[
               { value: "today", label: "Hoje" },
               { value: "7d", label: "7 dias" },
               { value: "30d", label: "30 dias" },
               { value: "this_month", label: "Este mês" },
-            ] as const).map(p => (
+            ].map(p => (
               <button
                 key={p.value}
-                onClick={() => setCourierPreset(p.value)}
+                onClick={() => setCourierPreset(p.value as any)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  courierPreset === p.value
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  courierPreset === p.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {p.label}
               </button>
             ))}
           </div>
-
-          {/* Toggle Sintético / Detalhado */}
-          <div className="flex bg-muted rounded-xl p-1 gap-1">
+          <div className="flex bg-muted rounded-xl p-1 gap-0.5">
             <button
               onClick={() => setReportMode("synthetic")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                reportMode === "synthetic"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                reportMode === "synthetic" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Package size={13} /> Sintético
+              <Package size={12} /> Sintético
             </button>
             <button
               onClick={() => setReportMode("detailed")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                reportMode === "detailed"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                reportMode === "detailed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <ChevronDown size={13} /> Detalhado
+              <ChevronDown size={12} /> Detalhado
             </button>
           </div>
-          <button
-            onClick={() => exportCourierCSV(couriers, reportMode)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground border border-border rounded-xl px-3 py-2 hover:bg-muted transition-colors"
-          >
-            <Download size={13} /> CSV
-          </button>
         </div>
       </div>
 
-      {/* KPIs rápidos */}
+      {/* ── KPIs ── */}
       <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Entregadores", value: String(couriers.length), icon: "🚵", color: "from-indigo-500/10 to-purple-500/10" },
-          { label: "Total Entregas", value: String(grandQty), icon: "📦", color: "from-blue-500/10 to-cyan-500/10" },
-          { label: "Total a Pagar", value: fmt(grandTotal), icon: "💰", color: "from-emerald-500/10 to-teal-500/10" },
-        ].map((kpi, i) => (
-          <div key={i} className={`bg-gradient-to-br ${kpi.color} border border-border rounded-2xl p-4`}>
-            <span className="text-xl block mb-2">{kpi.icon}</span>
-            <p className="text-xs text-muted-foreground font-medium">{kpi.label}</p>
-            <p className="text-xl font-black text-foreground mt-0.5">{kpi.value}</p>
+        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-3 md:p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Bike size={14} className="text-indigo-500" />
+            <span className="text-xs font-medium text-muted-foreground">Entregadores</span>
           </div>
-        ))}
+          <p className="text-xl md:text-2xl font-black text-foreground">{couriers.length}</p>
+        </div>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3 md:p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Package size={14} className="text-blue-500" />
+            <span className="text-xs font-medium text-muted-foreground">Entregas</span>
+          </div>
+          <p className="text-xl md:text-2xl font-black text-foreground">{grandQty}</p>
+        </div>
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 md:p-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <DollarSign size={14} className="text-emerald-500" />
+            <span className="text-xs font-medium text-muted-foreground">Total Fretes</span>
+          </div>
+          <p className="text-base md:text-xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">{fmt(grandTotal)}</p>
+        </div>
       </div>
 
+      {/* ── Conteúdo ── */}
       {deliveryOrders.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-16 text-center space-y-3">
-          <Bike size={48} className="mx-auto text-muted-foreground/30" />
-          <p className="font-semibold text-foreground">Nenhuma entrega no período selecionado</p>
-          <p className="text-sm text-muted-foreground">Os pedidos de entrega com entregador atribuído aparecerão aqui.</p>
+        <div className="bg-card border border-border rounded-2xl p-12 text-center space-y-3">
+          <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <Bike size={28} className="text-muted-foreground/40" />
+          </div>
+          <p className="font-semibold text-foreground">Nenhuma entrega no período</p>
+          <p className="text-sm text-muted-foreground">Pedidos com entregador atribuído aparecerão aqui.</p>
         </div>
       ) : reportMode === "synthetic" ? (
-
-        // ═══ MODO SINTÉTICO ═══
+        /* ═══ SINTÉTICO ═══ */
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-border bg-muted/20 flex items-center gap-2">
-            <Package size={16} className="text-indigo-500" />
+            <Package size={15} className="text-indigo-500" />
             <p className="font-semibold text-sm text-foreground">Resumo por Entregador</p>
-            <span className="ml-auto text-xs text-muted-foreground">Qtd. de entregas · valor unitário é a média por entrega</span>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="p-4 text-left font-semibold text-muted-foreground">Entregador</th>
-                <th className="p-4 text-center font-semibold text-muted-foreground">Qt. Entregas</th>
-                <th className="p-4 text-right font-semibold text-muted-foreground">Valor Unit. Médio</th>
-                <th className="p-4 text-right font-semibold text-muted-foreground">Total a Receber</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {couriers.map((c, i) => (
-                <tr key={c.name} className="hover:bg-muted/20 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                        {c.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-semibold text-foreground">{c.name}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1 rounded-full text-xs">
-                      {c.deliveries.length} entrega{c.deliveries.length !== 1 ? "s" : ""}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right text-muted-foreground">{fmt(c.avgFee)}</td>
-                  <td className="p-4 text-right">
-                    <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">{fmt(c.totalFee)}</span>
-                  </td>
+
+          {/* Mobile: cards empilhados */}
+          <div className="block md:hidden divide-y divide-border">
+            {couriers.map(c => (
+              <div key={c.name} className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {c.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.deliveries.length} entrega{c.deliveries.length !== 1 ? "s" : ""} · méd. {fmt(c.avgFee)}</p>
+                  </div>
+                </div>
+                <p className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">{fmt(c.totalFee)}</p>
+              </div>
+            ))}
+            <div className="p-4 flex items-center justify-between bg-muted/30">
+              <div>
+                <p className="font-bold text-foreground text-sm">Total Geral</p>
+                <p className="text-xs text-muted-foreground">{grandQty} entregas</p>
+              </div>
+              <p className="font-black text-emerald-600 dark:text-emerald-400 text-lg">{fmt(grandTotal)}</p>
+            </div>
+          </div>
+
+          {/* Desktop: tabela */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/30">
+                <tr>
+                  <th className="p-4 text-left font-semibold text-muted-foreground">Entregador</th>
+                  <th className="p-4 text-center font-semibold text-muted-foreground">Entregas</th>
+                  <th className="p-4 text-right font-semibold text-muted-foreground">Média por Entrega</th>
+                  <th className="p-4 text-right font-semibold text-muted-foreground">Total a Receber</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-border bg-muted/40">
-                <td className="p-4 font-bold text-foreground">TOTAL GERAL</td>
-                <td className="p-4 text-center font-bold text-indigo-600">{grandQty} entregas</td>
-                <td className="p-4 text-right text-muted-foreground">
-                  {grandQty > 0 ? fmt(grandTotal / grandQty) : "—"}
-                </td>
-                <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-lg">{fmt(grandTotal)}</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {couriers.map(c => (
+                  <tr key={c.name} className="hover:bg-muted/20 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                          {c.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-semibold text-foreground">{c.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1 rounded-full text-xs">
+                        {c.deliveries.length}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right text-muted-foreground">{fmt(c.avgFee)}</td>
+                    <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-base">{fmt(c.totalFee)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/40">
+                  <td className="p-4 font-bold text-foreground">Total Geral</td>
+                  <td className="p-4 text-center font-bold text-indigo-600">{grandQty}</td>
+                  <td className="p-4 text-right text-muted-foreground">{grandQty > 0 ? fmt(grandTotal / grandQty) : "—"}</td>
+                  <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-lg">{fmt(grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-
       ) : (
-
-        // ═══ MODO DETALHADO ═══
-        <div className="space-y-4">
-          {couriers.map((courier) => {
+        /* ═══ DETALHADO ═══ */
+        <div className="space-y-3">
+          {couriers.map(courier => {
             const isExpanded = expandedCourier === courier.name || couriers.length === 1;
             return (
               <div key={courier.name} className="bg-card border border-border rounded-2xl overflow-hidden">
-                {/* Header do entregador */}
                 <button
                   className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
                   onClick={() => setExpandedCourier(isExpanded && couriers.length > 1 ? null : courier.name)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shrink-0">
                       {courier.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left">
                       <p className="font-bold text-foreground">{courier.name}</p>
-                      <p className="text-xs text-muted-foreground">{courier.deliveries.length} entrega{courier.deliveries.length !== 1 ? "s" : ""}</p>
+                      <p className="text-xs text-muted-foreground">{courier.deliveries.length} entrega{courier.deliveries.length !== 1 ? "s" : ""} · méd. {fmt(courier.avgFee)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Total a receber</p>
+                      <p className="text-xs text-muted-foreground">a receber</p>
                       <p className="font-black text-emerald-600 dark:text-emerald-400">{fmt(courier.totalFee)}</p>
                     </div>
-                    <ChevronDown
-                      size={16}
-                      className={`text-muted-foreground transition-transform ${
-                        isExpanded ? "rotate-180" : ""
-                      }`}
-                    />
+                    <ChevronDown size={16} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                   </div>
                 </button>
 
-                {/* Tabela de entregas */}
                 {isExpanded && (
-                  <div className="border-t border-border overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/30">
-                        <tr>
-                          <th className="p-3 text-left font-semibold text-muted-foreground text-xs">Nº</th>
-                          <th className="p-3 text-left font-semibold text-muted-foreground text-xs">Horário</th>
-                          <th className="p-3 text-left font-semibold text-muted-foreground text-xs">Cliente</th>
-                          <th className="p-3 text-left font-semibold text-muted-foreground text-xs">Endereço</th>
-                          <th className="p-3 text-right font-semibold text-muted-foreground text-xs">Taxa Entrega</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {courier.deliveries.map((order) => (
-                          <tr key={order.id} className="hover:bg-muted/10 transition-colors">
-                            <td className="p-3">
-                              <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-md">#{order.number}</span>
-                            </td>
-                            <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">
-                              {fmtDate(order.createdAt)} {fmtTime(order.createdAt)}
-                            </td>
-                            <td className="p-3 font-medium text-foreground">{order.customerName}</td>
-                            <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">
-                              {order.address || "—"}
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {fmt(order.deliveryFee || 0)}
-                              </span>
-                            </td>
+                  <div className="border-t border-border">
+                    {/* Mobile: cards */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {courier.deliveries.map(order => (
+                        <div key={order.id} className="p-3 flex items-start justify-between gap-2">
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded shrink-0">#{order.number}</span>
+                              <span className="text-xs text-muted-foreground">{fmtTime(order.createdAt)}</span>
+                            </div>
+                            <p className="text-sm font-medium text-foreground truncate">{order.customerName || "—"}</p>
+                            {order.address && <p className="text-xs text-muted-foreground truncate">{order.address}</p>}
+                          </div>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">{fmt(order.deliveryFee || 0)}</span>
+                        </div>
+                      ))}
+                      <div className="p-3 flex justify-between items-center bg-indigo-500/5">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 size={13} className="text-emerald-500" />
+                          <span className="text-sm font-bold text-foreground">Total — {courier.name}</span>
+                        </div>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400">{fmt(courier.totalFee)}</span>
+                      </div>
+                    </div>
+
+                    {/* Desktop: tabela */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/30">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground text-xs">Nº</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground text-xs">Horário</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground text-xs">Cliente</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground text-xs">Endereço</th>
+                            <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground text-xs">Frete</th>
                           </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-border bg-indigo-500/5">
-                          <td colSpan={4} className="p-3 font-bold text-foreground text-sm">
-                            <span className="flex items-center gap-1.5">
-                              <CheckCircle2 size={14} className="text-emerald-500" />
-                              Total a receber — {courier.name}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right font-black text-emerald-600 dark:text-emerald-400 text-base">
-                            {fmt(courier.totalFee)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {courier.deliveries.map(order => (
+                            <tr key={order.id} className="hover:bg-muted/10 transition-colors">
+                              <td className="px-4 py-3">
+                                <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-md">#{order.number}</span>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                                {fmtDate(order.createdAt)} {fmtTime(order.createdAt)}
+                              </td>
+                              <td className="px-4 py-3 font-medium text-foreground">{order.customerName || "—"}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">{order.address || "—"}</td>
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">{fmt(order.deliveryFee || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t border-border bg-indigo-500/5">
+                            <td colSpan={4} className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <CheckCircle2 size={13} className="text-emerald-500" />
+                                <span className="font-bold text-foreground text-sm">Total a receber — {courier.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-black text-emerald-600 dark:text-emerald-400 text-base">{fmt(courier.totalFee)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
 
-          {/* Resumo geral do modo detalhado */}
+          {/* Total geral */}
           <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-foreground">Total Geral do Dia</p>
-              <p className="text-xs text-muted-foreground">{grandQty} entregas · {couriers.length} entregador{couriers.length !== 1 ? "es" : ""}</p>
+              <p className="text-sm font-bold text-foreground">Total Geral</p>
+              <p className="text-xs text-muted-foreground">{grandQty} entrega{grandQty !== 1 ? "s" : ""} · {couriers.length} entregador{couriers.length !== 1 ? "es" : ""}</p>
             </div>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{fmt(grandTotal)}</p>
+            <p className="text-xl md:text-2xl font-black text-emerald-600 dark:text-emerald-400">{fmt(grandTotal)}</p>
           </div>
         </div>
       )}
     </div>
   );
 }
+
