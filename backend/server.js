@@ -1110,7 +1110,8 @@ const runMigrations = async () => {
       "ALTER TABLE `store_settings` ADD COLUMN `is_open` TINYINT DEFAULT 1",
       "ALTER TABLE `orders` ADD COLUMN `coupon_id` INT DEFAULT NULL",
       "ALTER TABLE `orders` ADD COLUMN `discount_amount` DECIMAL(10,2) DEFAULT 0.00",
-      "ALTER TABLE `coupons` ADD COLUMN `usage_count` INT DEFAULT 0"
+      "ALTER TABLE `coupons` ADD COLUMN `usage_count` INT DEFAULT 0",
+      "ALTER TABLE `products` ADD COLUMN `brand` VARCHAR(100) DEFAULT NULL"
     ];
 
     for (const q of alters) {

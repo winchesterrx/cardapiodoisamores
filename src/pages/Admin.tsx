@@ -42,6 +42,8 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
 
 const statusFlow: OrderStatus[] = ["recebido", "confirmado", "preparando", "pronto", "despachado", "entregue"];
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function Admin() {
   const navigate = useNavigate();
   const { user, logout, token } = useAuth();
@@ -49,7 +51,7 @@ export default function Admin() {
   const { data: products = [], refetch: refetchProducts } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: couriers = [] } = useQuery({ queryKey: ['couriers'], queryFn: async () => {
-    const res = await fetch('http://localhost:3000/api/users', {
+    const res = await fetch(`${API_URL}/users`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) return [];

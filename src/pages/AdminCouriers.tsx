@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function AdminCouriers() {
   const { token } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -19,7 +21,7 @@ export default function AdminCouriers() {
     queryKey: ['admin-couriers'],
     queryFn: async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/users', {
+        const res = await fetch(`${API_URL}/users`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Erro');
@@ -56,7 +58,7 @@ export default function AdminCouriers() {
       let ok = false;
       try {
         if (editingId) {
-          const res = await fetch(`http://localhost:3000/api/users/${editingId}`, {
+          const res = await fetch(`${API_URL}/users/${editingId}`, {
             method: 'PUT',
             headers: { 
               'Content-Type': 'application/json',
@@ -66,7 +68,7 @@ export default function AdminCouriers() {
           });
           ok = res.ok;
         } else {
-          const res = await fetch('http://localhost:3000/api/users', {
+          const res = await fetch(`${API_URL}/users`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export default function AdminCouriers() {
   const handleDelete = async (id: number) => {
     if (confirm('Tem certeza que deseja excluir?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/users/${id}`, { 
+        const res = await fetch(`${API_URL}/users/${id}`, { 
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
