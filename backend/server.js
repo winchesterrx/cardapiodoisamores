@@ -9,6 +9,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import webpush from 'web-push';
 import crypto from 'crypto';
+import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, cancelIfoodOrder } from './ifoodIntegration.js';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
@@ -1077,6 +1078,51 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Erro ao excluir usuário' });
   }
 });
+// ── iFood Integration Endpoints ──
+app.post('/api/ifood/confirm/:id', authenticateToken, async (req, res) => {
+  try {
+    const success = await confirmIfoodOrder(req.params.id);
+    if (success) {
+      await db.query('UPDATE orders SET status = "confirmado" WHERE id = ?', [req.params.id]);
+      await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'confirmado']);
+      res.json({ message: 'Confirmado com sucesso no iFood' });
+    } else {
+      res.status(400).json({ error: 'Falha ao confirmar no iFood' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+app.post('/api/ifood/dispatch/:id', authenticateToken, async (req, res) => {
+  try {
+    const success = await dispatchIfoodOrder(req.params.id);
+    if (success) {
+      await db.query('UPDATE orders SET status = "despachado" WHERE id = ?', [req.params.id]);
+      await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'despachado']);
+      res.json({ message: 'Despachado com sucesso no iFood' });
+    } else {
+      res.status(400).json({ error: 'Falha ao despachar no iFood' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+app.post('/api/ifood/cancel/:id', authenticateToken, async (req, res) => {
+  try {
+    const success = await cancelIfoodOrder(req.params.id);
+    if (success) {
+      await db.query('UPDATE orders SET status = "cancelado" WHERE id = ?', [req.params.id]);
+      await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'cancelado']);
+      res.json({ message: 'Cancelado com sucesso no iFood' });
+    } else {
+      res.status(400).json({ error: 'Falha ao cancelar no iFood' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
 
 
 const runMigrations = async () => {
@@ -1145,5 +1191,6 @@ const runMigrations = async () => {
 runMigrations().then(() => {
   app.listen(PORT, () => {
     console.log(`Backend rodando na porta ${PORT}`);
+    startIfoodIntegration();
   });
 });

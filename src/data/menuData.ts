@@ -109,7 +109,7 @@ export interface Order {
   deliveryFee?: number;
   courierId?: number | null;
   courierName?: string | null;
-  origin?: 'delivery' | 'pdv';
+  origin?: 'delivery' | 'pdv' | 'ifood';
 }
 
 // ── Categories ──

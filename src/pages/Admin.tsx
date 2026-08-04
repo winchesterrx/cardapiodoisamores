@@ -280,6 +280,20 @@ export default function Admin() {
 
   // ── Order management ──
   const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus, extraData?: any) => {
+    const order = orders.find(o => o.id === orderId);
+    if (order?.origin === 'ifood') {
+      try {
+        if (newStatus === 'confirmado') {
+          await API.post(`/ifood/confirm/${orderId}`, {});
+        } else if (newStatus === 'despachado') {
+          await API.post(`/ifood/dispatch/${orderId}`, {});
+        } else if (newStatus === 'cancelado') {
+          await API.post(`/ifood/cancel/${orderId}`, {});
+        }
+      } catch (err) {
+        console.error("Erro na API do iFood:", err);
+      }
+    }
     await API.put(`/orders/${orderId}/status`, { status: newStatus, ...extraData });
     await refetchOrders();
   };
@@ -413,6 +427,9 @@ export default function Admin() {
                         <div className="flex items-start justify-between mb-1">
                           <div>
                             <span className="text-sm font-bold text-primary">#{order.number}</span>
+                            {order.origin === 'ifood' && (
+                              <span className="ml-2 text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">iFood</span>
+                            )}
                             <span className="text-xs text-muted-foreground ml-2">{formatDate(order.createdAt)}</span>
                           </div>
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${st.color}`}>
