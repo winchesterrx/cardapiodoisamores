@@ -1268,6 +1268,15 @@ const runMigrations = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS \`expense_shortcuts\` (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`description\` VARCHAR(255) NOT NULL,
+        \`category\` VARCHAR(50) NOT NULL,
+        \`suggested_amount\` VARCHAR(50) DEFAULT ''
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     const alters = [
       "ALTER TABLE `store_settings` ADD COLUMN `is_open` TINYINT DEFAULT 1",
       "ALTER TABLE `orders` ADD COLUMN `coupon_id` INT DEFAULT NULL",
