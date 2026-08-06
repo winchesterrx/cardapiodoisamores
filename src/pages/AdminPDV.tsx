@@ -27,6 +27,26 @@ export default function AdminPDV() {
     fetchStoreSettings().then(setStoreSettings);
   }, []);
 
+  const handleDeleteHistoryOrder = async (orderId: string) => {
+    if (!token) return;
+    if (!window.confirm("Deseja realmente excluir este lançamento do histórico?")) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setHistoryOrders(historyOrders.filter(o => o.id !== orderId));
+      } else {
+        alert("Erro ao excluir o pedido.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro de conexão ao excluir.");
+    }
+  };
+
   const fetchHistory = async () => {
     if (!token) return;
     setLoadingHistory(true);
@@ -285,63 +305,72 @@ export default function AdminPDV() {
             </Button>
           </div>
 
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted text-muted-foreground text-xs uppercase">
-                  <tr>
-                    <th className="px-4 py-3">ID / Data</th>
-                    <th className="px-4 py-3">Cliente</th>
-                    <th className="px-4 py-3">Tipo / Pagamento</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {historyOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                        Nenhum pedido encontrado.
-                      </td>
-                    </tr>
-                  ) : (
-                    historyOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold">#{order.id}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(order.created_at).toLocaleString('pt-BR')}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{order.customer_name || 'Balcão'}</p>
-                          {order.customer_whatsapp && (
-                            <p className="text-xs text-muted-foreground">{order.customer_whatsapp}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="capitalize">{order.consume_type}</p>
-                          <p className="text-xs text-muted-foreground">{order.payment_method}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 text-[10px] uppercase font-bold rounded-full ${
-                            order.status === 'entregue' ? 'bg-emerald-500/10 text-emerald-500' :
-                            order.status === 'despachado' ? 'bg-blue-500/10 text-blue-500' :
-                            'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {order.status}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {historyOrders.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-muted-foreground border-2 border-dashed rounded-xl">
+                Nenhum pedido encontrado no histórico.
+              </div>
+            ) : (
+              historyOrders.map((order) => {
+                // Montar string resumida dos itens
+                const itemsSummary = order.items && Array.isArray(order.items) 
+                  ? order.items.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ')
+                  : 'Itens não detalhados';
+
+                return (
+                  <Card key={order.id} className="relative overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="p-4 flex flex-col h-full">
+                      {/* Topo: ID, Data e Status */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <span className="font-bold text-primary text-base">#{order.number || order.id.slice(0,4)}</span>
+                          <span className="text-sm text-muted-foreground ml-2">
+                            {order.createdAt ? new Date(order.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data Indisponível'}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-primary">
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
+                            order.status === 'entregue' ? 'bg-emerald-500/10 text-emerald-600' :
+                            order.status === 'despachado' ? 'bg-blue-500/10 text-blue-600' :
+                            'bg-amber-500/10 text-amber-600'
+                          }`}>
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Corpo: Resumo dos itens */}
+                      <p className="text-sm text-foreground mb-4 line-clamp-2 flex-1">
+                        {itemsSummary}
+                      </p>
+
+                      {/* Rodapé: Valor, Cliente e Ações */}
+                      <div className="flex justify-between items-end mt-auto pt-3 border-t border-border">
+                        <span className="font-bold text-primary text-lg">
                           R$ {Number(order.total).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="text-sm">👤</span>
+                            {order.customerName || 'Balcão'}
+                          </span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10 -mr-1"
+                            onClick={() => handleDeleteHistoryOrder(order.id)}
+                            title="Excluir Lançamento"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
