@@ -132,6 +132,11 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
         setNeighborhood("");
         setReference("");
       }
+
+      if (customer.delivery_fee && Number(customer.delivery_fee) > 0) {
+        setDeliveryMode("manual");
+        setManualFee(Number(customer.delivery_fee).toString());
+      }
     }
   };
 

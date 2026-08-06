@@ -1141,7 +1141,7 @@ app.get('/api/customers/search', authenticateToken, async (req, res) => {
   try {
     const searchTerm = `%${q}%`;
     const [rows] = await db.query(`
-      SELECT customer_name as name, customer_whatsapp as phone, address 
+      SELECT customer_name as name, customer_whatsapp as phone, address, MAX(delivery_fee) as delivery_fee
       FROM orders 
       WHERE customer_name LIKE ? 
       AND customer_name IS NOT NULL 
