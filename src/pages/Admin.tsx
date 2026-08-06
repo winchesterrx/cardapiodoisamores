@@ -314,7 +314,7 @@ export default function Admin() {
 
   const handleSendConfirmation = (order: Order) => {
     const message = encodeURIComponent(
-      `✅ *Pedido #${order.number} Confirmado!*\n\nOlá! Seu pedido foi aceito e está sendo preparado.\n\n📋 Itens:\n${order.items.map((i) => `• ${i.quantity}x ${i.productName}`).join("\n")}\n\n💰 Total: R$ ${order.total.toFixed(2)}\n\nObrigado pela preferência! 🍔`
+      `✅ *Pedido #${order.number} Confirmado!*\n\nOlá! Seu pedido foi aceito e está sendo preparado.\n\n📋 Itens:\n${order.items.map((i) => `• ${i.quantity}x ${i.productName}`).join("\n")}\n\n💰 Total: R$ ${order.total.toFixed(2).replace('.', ',')}\n\nObrigado pela preferência! 🍔`
     );
     window.open(`https://wa.me/55${order.customerWhatsApp}?text=${message}`, "_blank");
   };
@@ -329,8 +329,8 @@ export default function Admin() {
       </style></head><body>
       <h1>Doces Gourmet <br>Pedido #${order.number}</h1>
       <p style="font-size:12px;text-align:center">${new Date(order.createdAt).toLocaleString("pt-BR")}</p>
-      ${order.items.map((i) => `<div class="item"><strong>${i.quantity}x ${i.productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2)}${i.addons.length > 0 ? `<br>&nbsp;&nbsp;+ ${i.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}` : ""}${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`).join("")}
-      <div class="total">TOTAL: R$ ${order.total.toFixed(2)}</div>
+      ${order.items.map((i) => `<div class="item"><strong>${i.quantity}x ${i.productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2).replace('.', ',')}${i.addons.length > 0 ? `<br>&nbsp;&nbsp;+ ${i.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}` : ""}${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`).join("")}
+      <div class="total">TOTAL: R$ ${order.total.toFixed(2).replace('.', ',')}</div>
       <div class="info">
       <p>🛒 ${order.consumeType}${order.address ? ` - ${order.address}` : ""}${order.mesa ? ` - Mesa ${order.mesa}` : ""}</p>
       <p>💳 ${order.paymentMethod}</p>
@@ -445,7 +445,7 @@ export default function Admin() {
                         </div>
                         <p className="text-sm text-foreground">{order.items.map((i) => `${i.quantity}x ${i.productName}`).join(", ")}</p>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-primary font-bold text-sm">R$ {order.total.toFixed(2)}</span>
+                          <span className="text-primary font-bold text-sm">R$ {order.total.toFixed(2).replace('.', ',')}</span>
                           <span className="text-[10px] text-muted-foreground">👤 {order.customerName || "Não informado"} · 📱 {order.customerWhatsApp}</span>
                         </div>
                       </button>
@@ -456,7 +456,7 @@ export default function Admin() {
                           {order.items.map((item, i) => (
                             <div key={i} className="text-sm text-foreground">
                               <span className="font-medium">{item.quantity}x {item.productName}</span>
-                              <span className="text-muted-foreground ml-1">R$ {(item.productPrice * item.quantity).toFixed(2)}</span>
+                              <span className="text-muted-foreground ml-1">R$ {(item.productPrice * item.quantity).toFixed(2).replace('.', ',')}</span>
                               {item.addons.length > 0 && (
                                 <p className="text-xs text-muted-foreground ml-4">+ {item.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}</p>
                               )}
@@ -469,12 +469,12 @@ export default function Admin() {
                             <p>🛒 **Tipo:** {order.consumeType}{order.address && ` · Endereço: ${order.address}`}{order.mesa && ` · Mesa: ${order.mesa}`}</p>
                             <p>💳 **Pagamento:** {order.paymentMethod}</p>
                             {order.customerCPF && <p>🪪 **CPF:** {order.customerCPF}</p>}
-                            {order.deliveryFee > 0 && <p>🛵 **Taxa de Entrega:** R$ {order.deliveryFee.toFixed(2)}</p>}
+                            {order.deliveryFee > 0 && <p>🛵 **Taxa de Entrega:** R$ {order.deliveryFee.toFixed(2).replace('.', ',')}</p>}
                             {order.couponId && (
-                              <p>🏷️ **Cupom Usado:** {coupons.find(c => c.id === order.couponId)?.code || order.couponId} (Desconto: R$ {order.discountAmount?.toFixed(2) || '0.00'})</p>
+                              <p>🏷️ **Cupom Usado:** {coupons.find(c => c.id === order.couponId)?.code || order.couponId} (Desconto: R$ {order.discountAmount?.toFixed(2).replace('.', ',') || '0.00'})</p>
                             )}
                             {order.changeNeededFor !== undefined && order.changeNeededFor !== null && order.changeNeededFor > 0 && (
-                              <p>💵 **Troco para:** R$ {order.changeNeededFor.toFixed(2)} (Troco a levar: R$ {(order.changeNeededFor - order.total).toFixed(2)})</p>
+                              <p>💵 **Troco para:** R$ {order.changeNeededFor.toFixed(2).replace('.', ',')} (Troco a levar: R$ {(order.changeNeededFor - order.total).toFixed(2).replace('.', ',')})</p>
                             )}
                             {order.courierId && (
                               <p className="text-slate-600 font-medium">📦 **Entregador:** {couriers.find((c: any) => c.id === order.courierId)?.name || "Desconhecido"}</p>
@@ -730,7 +730,7 @@ export default function Admin() {
                       {product.isPromo && <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full">PROMO</span>}
                     </div>
                     <p className="text-xs text-muted-foreground">{product.category}</p>
-                    <span className="text-sm font-bold bg-accent text-accent-foreground px-2 py-0.5 rounded inline-block mt-1">R$ {product.price.toFixed(2)}</span>
+                    <span className="text-sm font-bold bg-accent text-accent-foreground px-2 py-0.5 rounded inline-block mt-1">R$ {product.price.toFixed(2).replace('.', ',')}</span>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(product)} className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground"><Pencil size={16} /></button>
@@ -835,7 +835,7 @@ export default function Admin() {
                   <div>
                     <h4 className="font-semibold text-sm text-foreground">{addon.name}</h4>
                     <span className="text-xs text-muted-foreground">
-                      R$ {addon.price.toFixed(2)} · {addon.categoryIds.map((cid) => categories.find((c) => c.id === cid)?.name || cid).join(", ")}
+                      R$ {addon.price.toFixed(2).replace('.', ',')} · {addon.categoryIds.map((cid) => categories.find((c) => c.id === cid)?.name || cid).join(", ")}
                     </span>
                   </div>
                   <div className="flex gap-1">
@@ -857,7 +857,7 @@ export default function Admin() {
                 <div key={product.id} className="bg-card rounded-lg shadow-card p-4 flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-sm text-foreground">{product.name}</h4>
-                    <span className="text-xs text-muted-foreground">R$ {product.price.toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground">R$ {product.price.toFixed(2).replace('.', ',')}</span>
                   </div>
                   <button onClick={() => togglePromo(product.id)}
                     className={`text-xs font-medium px-4 py-2 rounded-lg transition-colors ${product.isPromo ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"

@@ -108,7 +108,7 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
         const q = parseFloat(updated.quantity.replace(',', '.')) || 0;
         const u = parseFloat(updated.unitPrice.replace(',', '.')) || 0;
         if (q > 0 && u > 0) {
-           updated.amount = (q * u).toFixed(2);
+           updated.amount = (q * u).toFixed(2).replace('.', ',');
         } else if (u === 0 || q === 0) {
            updated.amount = "";
         }
@@ -457,7 +457,7 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
           <div className="flex items-center gap-6">
              <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Subtotal</span>
-                <span className="text-base font-bold text-foreground">R$ {formTotal.toFixed(2)}</span>
+                <span className="text-base font-bold text-foreground">R$ {formTotal.toFixed(2).replace('.', ',')}</span>
              </div>
              <div className="w-px h-8 bg-border hidden md:block"></div>
              <div className="flex flex-col">
@@ -481,7 +481,7 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
           <div className="flex items-center gap-6">
              <div className="text-right">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-0.5">Total a Pagar</span>
-                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">R$ {finalTotal.toFixed(2)}</span>
+                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">R$ {finalTotal.toFixed(2).replace('.', ',')}</span>
              </div>
 
              <div className="flex gap-2">
