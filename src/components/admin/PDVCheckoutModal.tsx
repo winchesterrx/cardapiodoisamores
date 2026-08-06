@@ -32,6 +32,7 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [payment, setPayment] = useState<PaymentMethod>("Dinheiro");
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
+  const [customDate, setCustomDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Endereço
   const [street, setStreet] = useState("");
@@ -128,6 +129,7 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
       address: consume === "Entrega" ? fullAddress : undefined,
       deliveryFee: getEffectiveDeliveryFee(),
       discountAmount: discount,
+      customDate: customDate,
     });
   };
 
@@ -228,6 +230,19 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* ── Data da Venda (PDV Retroativo) ── */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Data do Lançamento
+                </label>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                />
               </div>
 
               {/* ── Endereço de Entrega ── */}

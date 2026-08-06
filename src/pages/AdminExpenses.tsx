@@ -9,6 +9,7 @@ import {
 import { API_URL } from "@/data/menuData";
 import { useAuth } from "@/contexts/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import ShortcutManagerModal from "@/components/admin/ShortcutManagerModal";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -22,26 +23,14 @@ const CATEGORIES = [
   { id: "outros", label: "Outros", color: "#64748b", icon: "📋" },
 ];
 
-// Quick-add shortcuts specific to açaí/sweets stores
-const QUICK_ITEMS = [
-  { description: "Açaí 10kg", category: "materia-prima", suggestedAmount: "" },
-  { description: "Nutella 1kg", category: "materia-prima", suggestedAmount: "" },
-  { description: "Leite em pó", category: "materia-prima", suggestedAmount: "" },
-  { description: "Leite condensado", category: "materia-prima", suggestedAmount: "" },
-  { description: "Granola 1kg", category: "materia-prima", suggestedAmount: "" },
-  { description: "Paçoca", category: "materia-prima", suggestedAmount: "" },
-  { description: "Banana", category: "materia-prima", suggestedAmount: "" },
-  { description: "Morango", category: "materia-prima", suggestedAmount: "" },
-  { description: "Copos 300ml (100un)", category: "embalagem", suggestedAmount: "" },
-  { description: "Colheres (100un)", category: "embalagem", suggestedAmount: "" },
-  { description: "Tampas", category: "embalagem", suggestedAmount: "" },
-  { description: "Sacolas", category: "embalagem", suggestedAmount: "" },
-  { description: "Álcool 70%", category: "higiene", suggestedAmount: "" },
-  { description: "Detergente", category: "higiene", suggestedAmount: "" },
-  { description: "Papel toalha", category: "higiene", suggestedAmount: "" },
-];
-
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface ExpenseShortcut {
+  id: number;
+  description: string;
+  category: string;
+  suggested_amount: string;
+}
 
 interface ExpenseFormItem {
   id: string;
@@ -78,6 +67,12 @@ async function fetchExpenses(token: string | null, start?: string, end?: string)
   if (start && end) url += `?start=${start}&end=${end}`;
   const res = await fetch(url, { headers: getAuthHeader(token) });
   if (!res.ok) throw new Error("Erro ao buscar despesas");
+  return res.json();
+}
+
+async function fetchExpenseShortcuts(token: string | null): Promise<ExpenseShortcut[]> {
+  const res = await fetch(`${API_URL}/expense-shortcuts`, { headers: getAuthHeader(token) });
+  if (!res.ok) throw new Error("Erro ao buscar atalhos");
   return res.json();
 }
 
@@ -139,6 +134,7 @@ export default function AdminExpenses() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showShortcutManager, setShowShortcutManager] = useState(false);
   const [activeSection, setActiveSection] = useState<"form" | "history" | "analytics">("form");
 
   // ── OCR State ──
@@ -157,6 +153,11 @@ export default function AdminExpenses() {
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses", filterStart, filterEnd],
     queryFn: () => fetchExpenses(token, filterStart, filterEnd),
+  });
+
+  const { data: shortcuts = [] } = useQuery({
+    queryKey: ["expense-shortcuts"],
+    queryFn: () => fetchExpenseShortcuts(token),
   });
 
   // Also fetch last month for comparison
@@ -233,13 +234,13 @@ export default function AdminExpenses() {
     setFormItems(prev => prev.filter(i => i.id !== id));
   };
 
-  const addQuickItem = (item: typeof QUICK_ITEMS[0]) => {
+  const addQuickItem = (item: ExpenseShortcut) => {
     setFormItems(prev => {
       const last = prev[prev.length - 1];
       if (!last.description && !last.amount) {
-        return prev.slice(0, -1).concat({ id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: "" });
+        return prev.slice(0, -1).concat({ id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: item.suggested_amount || "" });
       }
-      return [...prev, { id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: "" }];
+      return [...prev, { id: uid(), date: noteDate, category: item.category, description: item.description, size: "", amount: item.suggested_amount || "" }];
     });
     setShowQuickAdd(false);
   };
@@ -538,18 +539,27 @@ export default function AdminExpenses() {
             {/* Atalhos rápidos */}
             {showQuickAdd && (
               <div className="mx-5 mb-5 bg-purple-500/5 border border-purple-200 dark:border-purple-900 rounded-xl p-4 animate-in fade-in slide-in-from-top-1">
-                <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-3">Clique para adicionar ao formulário:</p>
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_ITEMS.map((item, i) => {
-                    const cat = getCategoryInfo(item.category);
-                    return (
-                      <button key={i} onClick={() => addQuickItem(item)}
-                        className="flex items-center gap-1.5 text-xs font-medium bg-card border border-border rounded-full px-3 py-1.5 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors">
-                        <span>{cat.icon}</span> {item.description}
-                      </button>
-                    );
-                  })}
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">Clique para adicionar ao formulário:</p>
+                  <button onClick={() => setShowShortcutManager(true)} className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+                    <Sparkles size={12} /> Gerenciar Atalhos
+                  </button>
                 </div>
+                {shortcuts.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">Nenhum atalho cadastrado. Clique em "Gerenciar Atalhos" para adicionar.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {shortcuts.map((item) => {
+                      const cat = getCategoryInfo(item.category);
+                      return (
+                        <button key={item.id} onClick={() => addQuickItem(item)}
+                          className="flex items-center gap-1.5 text-xs font-medium bg-card border border-border rounded-full px-3 py-1.5 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors">
+                          <span>{cat.icon}</span> {item.description}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1007,6 +1017,16 @@ export default function AdminExpenses() {
           </div>
         </div>
       )}
+
+      {/* ── Shortcut Manager ── */}
+      <ShortcutManagerModal
+        isOpen={showShortcutManager}
+        onClose={() => setShowShortcutManager(false)}
+        shortcuts={shortcuts}
+        token={token}
+        onUpdated={() => queryClient.invalidateQueries({ queryKey: ["expense-shortcuts"] })}
+        categories={CATEGORIES}
+      />
     </div>
   );
 }

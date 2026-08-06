@@ -92,7 +92,8 @@ export default function AdminPDV() {
       address: checkoutData.address,
       deliveryFee: checkoutData.deliveryFee,
       discountAmount: checkoutData.discountAmount,
-      origin: 'pdv'
+      origin: 'pdv',
+      customDate: checkoutData.customDate
     };
 
     try {

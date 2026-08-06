@@ -221,20 +221,28 @@ app.get('/api/products', async (req, res) => {
       JOIN addons a ON pa.addon_id = a.id
     `);
 
+    const [categoryAddonsRows] = await db.query(`
+      SELECT ac.category_id, a.*
+      FROM addon_categories ac
+      JOIN addons a ON ac.addon_id = a.id
+    `);
+
     const [productImagesRows] = await db.query(`
       SELECT * FROM product_images
     `);
-
-
-
     const formattedProducts = products.map(p => {
-      const addons = productAddonsRows
+      const specificAddons = productAddonsRows
         .filter(pa => pa.product_id === p.id)
-        .map(a => ({
-          id: a.id,
-          name: a.name,
-          price: Number(a.price)
-        }));
+        .map(a => ({ id: a.id, name: a.name, price: Number(a.price) }));
+        
+      const catAddons = categoryAddonsRows
+        .filter(ca => ca.category_id === p.category_id)
+        .map(a => ({ id: a.id, name: a.name, price: Number(a.price) }));
+
+      const allAddonsMap = new Map();
+      specificAddons.forEach(a => allAddonsMap.set(a.id, a));
+      catAddons.forEach(a => allAddonsMap.set(a.id, a));
+      const addons = Array.from(allAddonsMap.values());
 
       const images = productImagesRows
         .filter(img => img.product_id === p.id)
@@ -568,6 +576,57 @@ app.delete('/api/expenses/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Expense Shortcuts ──
+app.get('/api/expense-shortcuts', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM expense_shortcuts ORDER BY category, description');
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar atalhos de despesas:', error);
+    res.status(500).json({ error: 'Erro ao buscar atalhos' });
+  }
+});
+
+app.post('/api/expense-shortcuts', authenticateToken, async (req, res) => {
+  try {
+    const { description, category, suggested_amount } = req.body;
+    if (!description || !category) return res.status(400).json({ error: 'Descrição e categoria são obrigatórios' });
+    
+    const [result] = await db.query(
+      'INSERT INTO expense_shortcuts (description, category, suggested_amount) VALUES (?, ?, ?)',
+      [description, category, suggested_amount || '']
+    );
+    res.status(201).json({ id: result.insertId, message: 'Atalho criado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao criar atalho de despesa:', error);
+    res.status(500).json({ error: 'Erro ao criar atalho' });
+  }
+});
+
+app.put('/api/expense-shortcuts/:id', authenticateToken, async (req, res) => {
+  try {
+    const { description, category, suggested_amount } = req.body;
+    await db.query(
+      'UPDATE expense_shortcuts SET description = ?, category = ?, suggested_amount = ? WHERE id = ?',
+      [description, category, suggested_amount || '', req.params.id]
+    );
+    res.json({ message: 'Atalho atualizado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao atualizar atalho de despesa:', error);
+    res.status(500).json({ error: 'Erro ao atualizar atalho' });
+  }
+});
+
+app.delete('/api/expense-shortcuts/:id', authenticateToken, async (req, res) => {
+  try {
+    await db.query('DELETE FROM expense_shortcuts WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Atalho excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir atalho de despesa:', error);
+    res.status(500).json({ error: 'Erro ao excluir atalho' });
+  }
+});
+
 // ── Orders ──
 app.get('/api/orders', async (req, res) => {
   try {
@@ -712,9 +771,17 @@ app.post('/api/orders', async (req, res) => {
       INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount, courier_id, origin, created_at) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const now = new Date();
+    
+    let orderDate = new Date();
+    if (req.body.customDate) {
+      const datePart = req.body.customDate; 
+      const timePart = orderDate.toISOString().split('T')[1]; 
+      orderDate = new Date(`${datePart}T${timePart}`);
+      if (isNaN(orderDate.getTime())) orderDate = new Date();
+    }
+
     await connection.query(queryOrder, [
-      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0, courierId || null, origin || 'delivery', now
+      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0, courierId || null, origin || 'delivery', orderDate
     ]);
 
     // Busca o order_number gerado pelo AUTO_INCREMENT
