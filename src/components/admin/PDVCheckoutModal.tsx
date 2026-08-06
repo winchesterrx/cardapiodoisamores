@@ -41,11 +41,16 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
 
   useEffect(() => {
     if (isOpen && token) {
-      fetch(`${API_URL}/drivers`, {
+      fetch(`${API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => res.json())
-      .then(data => setDrivers(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          const couriers = data.filter((u: any) => u.role === 'courier');
+          setDrivers(couriers);
+        }
+      })
       .catch(err => console.error("Error fetching drivers:", err));
     }
   }, [isOpen, token]);
