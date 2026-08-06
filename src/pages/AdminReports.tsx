@@ -94,6 +94,7 @@ export default function AdminReports() {
     let end = new Date(now);
 
     if (datePreset === "today") { start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999); }
+    else if (datePreset === "yesterday") { start.setDate(now.getDate() - 1); start.setHours(0, 0, 0, 0); end = new Date(start); end.setHours(23, 59, 59, 999); }
     else if (datePreset === "7d") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999); }
     else if (datePreset === "30d") { start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999); }
     else if (datePreset === "this_month") { start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0); end.setHours(23, 59, 59, 999); }
@@ -199,11 +200,19 @@ export default function AdminReports() {
         productStats[item.productName].revenue += itemPrice;
       });
 
-      const phone = order.customerWhatsApp || "Sem Número";
-      if (!customerStats[phone]) customerStats[phone] = { name: order.customerName || "?", phone, count: 0, total: 0, lastOrder: order.createdAt };
-      customerStats[phone].count += 1;
-      customerStats[phone].total += order.total;
-      if (new Date(order.createdAt) > new Date(customerStats[phone].lastOrder)) customerStats[phone].lastOrder = order.createdAt;
+      const customerIdKey = order.customerWhatsApp ? order.customerWhatsApp : (order.customerName || "Desconhecido").trim().toLowerCase();
+      if (!customerStats[customerIdKey]) {
+        customerStats[customerIdKey] = { 
+          name: order.customerName || "Desconhecido", 
+          phone: order.customerWhatsApp || "Sem Número", 
+          count: 0, 
+          total: 0, 
+          lastOrder: order.createdAt 
+        };
+      }
+      customerStats[customerIdKey].count += 1;
+      customerStats[customerIdKey].total += order.total;
+      if (new Date(order.createdAt) > new Date(customerStats[customerIdKey].lastOrder)) customerStats[customerIdKey].lastOrder = order.createdAt;
 
       if (order.couponId) {
         const cid = String(order.couponId);
@@ -298,6 +307,7 @@ export default function AdminReports() {
 
   const presets = [
     { key: "today", label: "Hoje" },
+    { key: "yesterday", label: "Ontem" },
     { key: "7d", label: "7 dias" },
     { key: "30d", label: "30 dias" },
     { key: "this_month", label: "Este Mês" },
