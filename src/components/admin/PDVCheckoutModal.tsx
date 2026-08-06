@@ -38,6 +38,12 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [driverId, setDriverId] = useState("");
   const [drivers, setDrivers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Autocomplete Clientes
+  const [customerSuggestions, setCustomerSuggestions] = useState<any[]>([]);
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const { token } = useAuth();
   
   useEffect(() => {
@@ -82,6 +88,52 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [number, setNumber] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [reference, setReference] = useState("");
+
+  // Efeito do Autocomplete de Clientes
+  useEffect(() => {
+    if (!token || customerName.trim().length < 2) {
+      setCustomerSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearchingCustomers(true);
+      try {
+        const res = await fetch(`${API_URL}/customers/search?q=${encodeURIComponent(customerName.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setCustomerSuggestions(data);
+        setShowSuggestions(data.length > 0);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearchingCustomers(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [customerName, token]);
+
+  const handleSelectCustomer = (customer: any) => {
+    setCustomerName(customer.name || "");
+    setCustomerWhatsApp(customer.phone || "");
+    setShowSuggestions(false);
+
+    if (consume === "Entrega" && customer.address) {
+      const match = customer.address.match(/^(.*?),\s*([^ -]+)\s*(?:-\s*([^(]+))?(?:\s*\((?:Ref:\s*)?(.*)\))?$/);
+      if (match) {
+        setStreet(match[1]?.trim() || customer.address);
+        setNumber(match[2]?.trim() || "");
+        setNeighborhood(match[3]?.trim() || "");
+        setReference(match[4]?.trim() || "");
+      } else {
+        setStreet(customer.address);
+        setNumber("");
+        setNeighborhood("");
+        setReference("");
+      }
+    }
+  };
 
   // Frete
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("auto");
@@ -267,7 +319,43 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
                       placeholder="Nome do cliente"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
+                      onFocus={() => { if (customerSuggestions.length > 0) setShowSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     />
+                    
+                    <AnimatePresence>
+                      {showSuggestions && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="absolute top-full left-0 w-full mt-1 bg-card border border-border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto"
+                        >
+                          {isSearchingCustomers ? (
+                            <div className="p-3 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              Buscando...
+                            </div>
+                          ) : (
+                            customerSuggestions.map((c, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => handleSelectCustomer(c)}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted/50 border-b border-border last:border-0 transition-colors"
+                              >
+                                <div className="font-semibold text-foreground">{c.name}</div>
+                                {(c.phone || c.address) && (
+                                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                    {c.phone} {c.address ? `• ${c.address}` : ''}
+                                  </div>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                   <div className="relative">
                     <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

@@ -1133,6 +1133,29 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// --- CUSTOMERS ---
+app.get('/api/customers/search', authenticateToken, async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.length < 2) return res.json([]);
+  
+  try {
+    const searchTerm = `%${q}%`;
+    const [rows] = await db.query(`
+      SELECT customer_name as name, customer_whatsapp as phone, address 
+      FROM orders 
+      WHERE customer_name LIKE ? 
+      AND customer_name IS NOT NULL 
+      AND customer_name != '' 
+      GROUP BY customer_name, customer_whatsapp, address 
+      LIMIT 15
+    `, [searchTerm]);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar clientes' });
+  }
+});
+
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT id, name, phone, role, delivery_fee, created_at FROM users ORDER BY created_at DESC');
