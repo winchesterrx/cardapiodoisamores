@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchProducts, fetchStoreSettings, API_URL, StoreSettings } from '@/data/menuData';
 import { useAuth } from '@/contexts/AuthContext';
 import PDVProductModal from '@/components/admin/PDVProductModal';
 import PDVCheckoutModal from '@/components/admin/PDVCheckoutModal';
-import type { Product, SelectedAddon } from '@/data/menuData';
+import EditOrderModal from '@/components/admin/EditOrderModal';
+import type { Product, SelectedAddon, Order } from '@/data/menuData';
 
 export default function AdminPDV() {
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
@@ -22,6 +23,7 @@ export default function AdminPDV() {
   const { token } = useAuth();
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchStoreSettings().then(setStoreSettings);
@@ -44,6 +46,26 @@ export default function AdminPDV() {
     } catch (e) {
       console.error(e);
       alert("Erro de conexão ao excluir.");
+    }
+  };
+
+  const handleSaveOrderEdit = async (orderId: string, data: any) => {
+    try {
+      const res = await fetch(`${API_URL}/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        await fetchHistory();
+      } else {
+        alert("Erro ao salvar edição do pedido");
+      }
+    } catch (e) {
+      alert("Erro de conexão ao editar");
     }
   };
 
@@ -354,15 +376,26 @@ export default function AdminPDV() {
                             <span className="text-sm">👤</span>
                             {order.customerName || 'Balcão'}
                           </span>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-destructive hover:bg-destructive/10 -mr-1"
-                            onClick={() => handleDeleteHistoryOrder(order.id)}
-                            title="Excluir Lançamento"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          <div className="flex -mr-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-muted-foreground hover:bg-muted"
+                              onClick={() => setEditingOrderForModal(order)}
+                              title="Editar Lançamento"
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteHistoryOrder(order.id)}
+                              title="Excluir Lançamento"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -392,6 +425,14 @@ export default function AdminPDV() {
           />
         </>
       )}
+
+      <EditOrderModal
+        isOpen={editingOrderForModal !== null}
+        onClose={() => setEditingOrderForModal(null)}
+        order={editingOrderForModal}
+        products={products}
+        onSave={handleSaveOrderEdit}
+      />
     </div>
   );
 }

@@ -43,7 +43,11 @@ export default function ShortcutManagerModal({ isOpen, onClose, shortcuts, token
       const res = await fetch(url, {
         method,
         headers: getAuthHeader(),
-        body: JSON.stringify({ description, category, suggested_amount: suggestedAmount })
+        body: JSON.stringify({ 
+          description, 
+          category, 
+          suggested_amount: suggestedAmount ? parseFloat(suggestedAmount) : 0 
+        })
       });
       if (!res.ok) throw new Error();
       onUpdated();
