@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchProducts, fetchStoreSettings, API_URL, StoreSettings } from '@/data/menuData';
+import { useAuth } from '@/contexts/AuthContext';
 import PDVProductModal from '@/components/admin/PDVProductModal';
 import PDVCheckoutModal from '@/components/admin/PDVCheckoutModal';
 import type { Product, SelectedAddon } from '@/data/menuData';
 
 export default function AdminPDV() {
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
+  const [activeTab, setActiveTab] = useState<'pdv' | 'history'>('pdv');
   const [cart, setCart] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   
@@ -17,10 +19,39 @@ export default function AdminPDV() {
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const { token } = useAuth();
+  const [historyOrders, setHistoryOrders] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     fetchStoreSettings().then(setStoreSettings);
   }, []);
+
+  const fetchHistory = async () => {
+    if (!token) return;
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`${API_URL}/orders`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Filtra apenas os finalizados ou de origem PDV, ou todos.
+        // Vamos mostrar os do PDV ou todos que estão concluídos para ter um histórico geral de saídas.
+        setHistoryOrders(data.filter((o: any) => o.origin === 'pdv' || o.status === 'entregue'));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab, token]);
 
   const openProductModal = (product: Product) => {
     if (product.addons && product.addons.length > 0) {
@@ -84,7 +115,8 @@ export default function AdminPDV() {
         notes: item.notes
       })),
       total: total + (checkoutData.deliveryFee || 0),
-      status: 'recebido',
+      status: checkoutData.status || 'recebido',
+      courierId: checkoutData.driverId || undefined,
       customerName: checkoutData.customerName,
       customerWhatsApp: checkoutData.customerWhatsApp,
       consumeType: checkoutData.consumeType.toLowerCase(),
@@ -116,25 +148,50 @@ export default function AdminPDV() {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-2 space-y-4">
-        <h2 className="text-xl font-bold">Catálogo (Frente de Caixa)</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map(p => (
-            <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openProductModal(p)}>
-              <div className="aspect-square bg-muted">
-                {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}
-              </div>
-              <CardContent className="p-3">
-                <p className="font-semibold text-sm line-clamp-1">{p.name}</p>
-                <p className="text-primary font-bold">R$ {p.price.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+    <div className="space-y-6">
+      <div className="flex gap-4 border-b border-border pb-2">
+        <button
+          onClick={() => setActiveTab('pdv')}
+          className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-t-lg transition-colors border-b-2 ${
+            activeTab === 'pdv'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+        >
+          <Receipt size={16} /> Lançar PDV
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-t-lg transition-colors border-b-2 ${
+            activeTab === 'history'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+        >
+          <History size={16} /> Histórico de Saídas
+        </button>
       </div>
-      
-      <div>
+
+      {activeTab === 'pdv' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            <h2 className="text-xl font-bold">Catálogo (Frente de Caixa)</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {products.map(p => (
+                <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openProductModal(p)}>
+                  <div className="aspect-square bg-muted">
+                    {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}
+                  </div>
+                  <CardContent className="p-3">
+                    <p className="font-semibold text-sm line-clamp-1">{p.name}</p>
+                    <p className="text-primary font-bold">R$ {p.price.toFixed(2)}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+          
+          <div>
         <Card className="sticky top-4">
           <CardHeader className="pb-3 border-b">
             <CardTitle className="flex items-center gap-2">
@@ -216,21 +273,96 @@ export default function AdminPDV() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      )}
 
-      <PDVProductModal 
-        product={selectedProduct} 
-        onClose={() => setSelectedProduct(null)}
-        onAdd={handleAddProduct}
-      />
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Histórico de Saídas do PDV</h2>
+            <Button variant="outline" size="sm" onClick={fetchHistory} disabled={loadingHistory}>
+              <RefreshCw size={16} className={`mr-2 ${loadingHistory ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+          </div>
 
-      <PDVCheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        onConfirm={handleConfirmOrder}
-        total={total}
-        discount={discount}
-        storeSettings={storeSettings}
-      />
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted text-muted-foreground text-xs uppercase">
+                  <tr>
+                    <th className="px-4 py-3">ID / Data</th>
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3">Tipo / Pagamento</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {historyOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        Nenhum pedido encontrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    historyOrders.map((order) => (
+                      <tr key={order.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold">#{order.id}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(order.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{order.customer_name || 'Balcão'}</p>
+                          {order.customer_whatsapp && (
+                            <p className="text-xs text-muted-foreground">{order.customer_whatsapp}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="capitalize">{order.consume_type}</p>
+                          <p className="text-xs text-muted-foreground">{order.payment_method}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-[10px] uppercase font-bold rounded-full ${
+                            order.status === 'entregue' ? 'bg-emerald-500/10 text-emerald-500' :
+                            order.status === 'despachado' ? 'bg-blue-500/10 text-blue-500' :
+                            'bg-amber-500/10 text-amber-500'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-primary">
+                          R$ {Number(order.total).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'pdv' && (
+        <>
+          <PDVProductModal 
+            product={selectedProduct} 
+            onClose={() => setSelectedProduct(null)}
+            onAdd={handleAddProduct}
+          />
+
+          <PDVCheckoutModal
+            isOpen={isCheckoutOpen}
+            onClose={() => setIsCheckoutOpen(false)}
+            onConfirm={handleConfirmOrder}
+            total={total}
+            discount={discount}
+            storeSettings={storeSettings}
+          />
+        </>
+      )}
     </div>
   );
 }

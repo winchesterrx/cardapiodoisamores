@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { X, MapPin, Truck, PenLine, Calculator, User, Phone, Navigation, CheckCircle2 } from "lucide-react";
+import { X, MapPin, Truck, PenLine, Calculator, User, Phone, Navigation, CheckCircle2, CheckCircle, Package, UserCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL, StoreSettings } from "@/data/menuData";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   isOpen: boolean;
@@ -33,6 +34,21 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
   const [customDate, setCustomDate] = useState(new Date().toISOString().split("T")[0]);
+  const [status, setStatus] = useState("entregue");
+  const [driverId, setDriverId] = useState("");
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && token) {
+      fetch(`${API_URL}/drivers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => setDrivers(data))
+      .catch(err => console.error("Error fetching drivers:", err));
+    }
+  }, [isOpen, token]);
 
   // Endereço
   const [street, setStreet] = useState("");
@@ -130,6 +146,8 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
       deliveryFee: getEffectiveDeliveryFee(),
       discountAmount: discount,
       customDate: customDate,
+      status: status,
+      driverId: consume === "Entrega" && driverId ? parseInt(driverId) : undefined,
     });
   };
 
@@ -232,20 +250,42 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
                 </div>
               </div>
 
-              {/* ── Data da Venda (PDV Retroativo) ── */}
-              <div className="space-y-2">
+              {/* ── Status do Pedido (PDV Retroativo) ── */}
+              <div className="space-y-3">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Data do Lançamento
+                  Detalhes do Lançamento
                 </label>
-                <input
-                  type="date"
-                  className="w-full px-3 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground block">Data do Lançamento</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground block">Status</label>
+                    <div className="relative">
+                      <CheckCircle size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <select
+                        className="w-full pl-9 pr-3 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                      >
+                        <option value="pendente">Pendente</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="pronto">Pronto para Despache</option>
+                        <option value="despachado">Despachado</option>
+                        <option value="entregue">Entregue</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* ── Endereço de Entrega ── */}
+              {/* ── Endereço e Entregador ── */}
               <AnimatePresence>
                 {consume === "Entrega" && (
                   <motion.div
@@ -427,6 +467,29 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
                           )}
                         </AnimatePresence>
                       </div>
+                      
+                      {/* ── Seleção de Entregador ── */}
+                      <div className="pt-2 space-y-1.5">
+                        <label className="text-xs text-muted-foreground block">
+                          Entregador (Opcional)
+                        </label>
+                        <div className="relative">
+                          <UserCheck size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          <select
+                            className="w-full pl-9 pr-3 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none"
+                            value={driverId}
+                            onChange={(e) => setDriverId(e.target.value)}
+                          >
+                            <option value="">Selecione um entregador</option>
+                            {drivers.map(driver => (
+                              <option key={driver.id} value={driver.id}>
+                                {driver.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
                     </div>
                   </motion.div>
                 )}
