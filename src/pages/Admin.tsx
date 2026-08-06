@@ -69,6 +69,8 @@ export default function Admin() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
   const [orderFilter, setOrderFilter] = useState<OrderStatus | "todos">("todos");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Category form
   const [showCatForm, setShowCatForm] = useState(false);
@@ -300,6 +302,32 @@ export default function Admin() {
     await refetchOrders();
   };
 
+  const handleBulkUpdate = async (newStatus: OrderStatus) => {
+    const ordersToUpdate = filteredOrders.filter(o => o.status !== "cancelado" && o.status !== newStatus);
+    if (ordersToUpdate.length === 0) {
+      alert("Nenhum pedido válido para alterar nesta visualização.");
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja alterar ${ordersToUpdate.length} pedido(s) filtrado(s) para '${statusConfig[newStatus].label}'?\n\n(Pedidos cancelados serão ignorados).`)) return;
+
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(ordersToUpdate.map(async o => {
+        if (o.origin === 'ifood') {
+          if (newStatus === 'confirmado') await API.post(`/ifood/confirm/${o.id}`, {}).catch(()=>{});
+          else if (newStatus === 'despachado') await API.post(`/ifood/dispatch/${o.id}`, {}).catch(()=>{});
+        }
+        return API.put(`/orders/${o.id}/status`, { status: newStatus });
+      }));
+      await refetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao atualizar pedidos em massa.");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const handleSaveOrderEdit = async (orderId: string, data: any) => {
     await API.put(`/orders/${orderId}`, data);
     await refetchOrders();
@@ -350,7 +378,17 @@ export default function Admin() {
     return isToday ? `Hoje, ${time}` : `${d.toLocaleDateString("pt-BR")}, ${time}`;
   };
 
-  const filteredOrders = orderFilter === "todos" ? orders : orders.filter((o) => o.status === orderFilter);
+  const filteredOrders = orders.filter((o) => {
+    if (orderFilter !== "todos" && o.status !== orderFilter) return false;
+    if (orderSearchQuery.trim()) {
+      const q = orderSearchQuery.toLowerCase();
+      const matchName = o.customerName?.toLowerCase().includes(q);
+      const matchPhone = o.customerWhatsApp?.includes(q);
+      const matchAddress = o.address?.toLowerCase().includes(q);
+      if (!matchName && !matchPhone && !matchAddress) return false;
+    }
+    return true;
+  });
 
   // Login block removed since route is protected by App.tsx
 
@@ -401,6 +439,34 @@ export default function Admin() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-display text-foreground">Pedidos Recebidos</h2>
               <button onClick={refreshOrders} className="text-sm text-primary font-medium">Atualizar</button>
+            </div>
+
+            {/* Busca e Ações em Massa */}
+            <div className="flex flex-col md:flex-row gap-3 mb-4">
+               <input 
+                 type="text" 
+                 placeholder="Buscar por nome, telefone ou endereço..." 
+                 value={orderSearchQuery}
+                 onChange={e => setOrderSearchQuery(e.target.value)}
+                 className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-border bg-card focus:ring-primary focus:border-primary outline-none transition-all"
+               />
+               <div className="flex gap-2">
+                 <select 
+                   className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-border bg-card text-foreground cursor-pointer focus:ring-primary outline-none"
+                   onChange={(e) => {
+                     if (e.target.value) {
+                       handleBulkUpdate(e.target.value as OrderStatus);
+                       e.target.value = ""; 
+                     }
+                   }}
+                   disabled={isBulkUpdating}
+                 >
+                   <option value="">Ação em Massa (Todos da tela)...</option>
+                   {statusFlow.map(s => (
+                     <option key={s} value={s}>Mover filtrados para {statusConfig[s].label}</option>
+                   ))}
+                 </select>
+               </div>
             </div>
 
             {/* Filter */}

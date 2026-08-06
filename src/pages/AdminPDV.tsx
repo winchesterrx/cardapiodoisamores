@@ -24,6 +24,8 @@ export default function AdminPDV() {
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [isBulkUpdatingHistory, setIsBulkUpdatingHistory] = useState(false);
 
   useEffect(() => {
     fetchStoreSettings().then(setStoreSettings);
@@ -89,11 +91,46 @@ export default function AdminPDV() {
     }
   };
 
+  const handleHistoryBulkUpdate = async () => {
+    const ordersToUpdate = filteredHistoryOrders.filter(o => o.status !== "cancelado" && o.status !== "entregue");
+    if (ordersToUpdate.length === 0) {
+      alert("Nenhum pedido válido para marcar como entregue nesta visualização.");
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja marcar ${ordersToUpdate.length} pedido(s) filtrado(s) como 'Entregue'?\n\n(Pedidos cancelados ou já entregues serão ignorados).`)) return;
+
+    setIsBulkUpdatingHistory(true);
+    try {
+      await Promise.all(ordersToUpdate.map(o => fetch(`${API_URL}/orders/${o.id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: "entregue" })
+      })));
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao atualizar pedidos no histórico.");
+    } finally {
+      setIsBulkUpdatingHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'history') {
       fetchHistory();
     }
-  }, [activeTab, token]);
+  }, [activeTab]);
+
+  const filteredHistoryOrders = historyOrders.filter((o) => {
+    if (historySearchQuery.trim()) {
+      const q = historySearchQuery.toLowerCase();
+      const matchName = o.customerName?.toLowerCase().includes(q);
+      const matchPhone = o.customerWhatsApp?.includes(q);
+      const matchId = o.id?.toString().includes(q);
+      if (!matchName && !matchPhone && !matchId) return false;
+    }
+    return true;
+  });
 
   const openProductModal = (product: Product) => {
     if (product.addons && product.addons.length > 0) {
@@ -327,13 +364,30 @@ export default function AdminPDV() {
             </Button>
           </div>
 
+          <div className="flex flex-col md:flex-row gap-3 mb-2">
+             <input 
+               type="text" 
+               placeholder="Buscar por nome, telefone ou endereço..." 
+               value={historySearchQuery}
+               onChange={e => setHistorySearchQuery(e.target.value)}
+               className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-card focus:ring-primary focus:border-primary outline-none transition-all"
+             />
+             <Button 
+               onClick={handleHistoryBulkUpdate}
+               disabled={isBulkUpdatingHistory}
+               className="bg-emerald-600 hover:bg-emerald-700 text-white whitespace-nowrap"
+             >
+               Marcar visíveis como Entregue
+             </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {historyOrders.length === 0 ? (
+            {filteredHistoryOrders.length === 0 ? (
               <div className="col-span-full py-8 text-center text-muted-foreground border-2 border-dashed rounded-xl">
                 Nenhum pedido encontrado no histórico.
               </div>
             ) : (
-              historyOrders.map((order) => {
+              filteredHistoryOrders.map((order) => {
                 // Montar string resumida dos itens
                 const itemsSummary = order.items && Array.isArray(order.items) 
                   ? order.items.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ')
