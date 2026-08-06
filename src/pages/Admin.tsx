@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 import {
   LogIn, LogOut, Plus, Pencil, Trash2, BarChart3, Package, Star, Settings,
   ChevronLeft, LayoutGrid, ListPlus, ClipboardList, CheckCircle2, Clock,
@@ -527,7 +528,7 @@ export default function Admin() {
                                   className="h-6 w-6 text-green-600 hover:bg-green-600/10 ml-0.5"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    window.open(`https://wa.me/55${order.customerWhatsApp.replace(/\\D/g, '')}`, '_blank');
+                                    window.open(`https://wa.me/55${String(order.customerWhatsApp).replace(/\\D/g, '')}`, '_blank');
                                   }}
                                   title="Falar no WhatsApp"
                                 >

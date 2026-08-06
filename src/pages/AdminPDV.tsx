@@ -443,7 +443,7 @@ export default function AdminPDV() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="h-7 w-7 text-green-600 hover:bg-green-600/10"
-                                onClick={() => window.open(`https://wa.me/55${order.customerWhatsApp.replace(/\D/g, '')}`, '_blank')}
+                                onClick={() => window.open(`https://wa.me/55${String(order.customerWhatsApp).replace(/\D/g, '')}`, '_blank')}
                                 title="Falar no WhatsApp"
                               >
                                 <MessageCircle size={14} />
