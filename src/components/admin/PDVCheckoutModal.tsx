@@ -43,6 +43,21 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   useEffect(() => {
     if (!isOpen) {
       setIsSubmitting(false);
+      setConsume("Balcão");
+      setPayment("Dinheiro");
+      setCustomerName("");
+      setCustomerWhatsApp("");
+      setCustomDate(new Date().toISOString().split("T")[0]);
+      setStatus("entregue");
+      setDriverId("");
+      setStreet("");
+      setNumber("");
+      setNeighborhood("");
+      setReference("");
+      setDeliveryMode("auto");
+      setCalculatedDeliveryFee(null);
+      setManualFee("");
+      setDeliveryFeeError("");
     }
   }, [isOpen]);
 
