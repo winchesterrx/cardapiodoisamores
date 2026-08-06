@@ -133,7 +133,7 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
         setReference("");
       }
 
-      if (customer.delivery_fee && Number(customer.delivery_fee) > 0) {
+      if (customer.delivery_fee !== undefined && customer.delivery_fee !== null) {
         setDeliveryMode("manual");
         setManualFee(Number(customer.delivery_fee).toString());
       }
