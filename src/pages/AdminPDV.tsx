@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye, Pencil } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye, Pencil, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchProducts, fetchStoreSettings, API_URL, StoreSettings } from '@/data/menuData';
@@ -426,11 +426,29 @@ export default function AdminPDV() {
                           R$ {Number(order.total).toFixed(2)}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <span className="text-sm">👤</span>
-                            {order.customerName || 'Balcão'}
-                          </span>
-                          <div className="flex -mr-1">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <span className="text-sm">👤</span>
+                              {order.customerName || 'Balcão'}
+                            </span>
+                            {order.customerWhatsApp && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1 opacity-80">
+                                📱 {order.customerWhatsApp}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex -mr-1 items-center gap-1">
+                            {order.customerWhatsApp && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-green-600 hover:bg-green-600/10"
+                                onClick={() => window.open(`https://wa.me/55${order.customerWhatsApp.replace(/\D/g, '')}`, '_blank')}
+                                title="Falar no WhatsApp"
+                              >
+                                <MessageCircle size={14} />
+                              </Button>
+                            )}
                             <Button 
                               variant="ghost" 
                               size="icon" 

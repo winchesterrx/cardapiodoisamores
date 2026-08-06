@@ -512,7 +512,30 @@ export default function Admin() {
                         <p className="text-sm text-foreground">{order.items.map((i) => `${i.quantity}x ${i.productName}`).join(", ")}</p>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-primary font-bold text-sm">R$ {order.total.toFixed(2).replace('.', ',')}</span>
-                          <span className="text-[10px] text-muted-foreground">👤 {order.customerName || "Não informado"} · 📱 {order.customerWhatsApp}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              👤 {order.customerName || "Não informado"}
+                            </span>
+                            {order.customerWhatsApp && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground opacity-80">
+                                  · 📱 {order.customerWhatsApp}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-green-600 hover:bg-green-600/10 ml-0.5"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`https://wa.me/55${order.customerWhatsApp.replace(/\\D/g, '')}`, '_blank');
+                                  }}
+                                  title="Falar no WhatsApp"
+                                >
+                                  <MessageCircle size={12} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </button>
 
