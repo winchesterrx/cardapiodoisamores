@@ -19,6 +19,8 @@ export const CATEGORIES = [
   { id: "higiene", label: "Higiene/Limpeza", color: "#8b5cf6", icon: "🧴" },
   { id: "marketing", label: "Marketing", color: "#ec4899", icon: "📢" },
   { id: "energia", label: "Energia/Água", color: "#14b8a6", icon: "⚡" },
+  { id: "frutas", label: "Frutas", color: "#f43f5e", icon: "🍓" },
+  { id: "ingredientes", label: "Ingredientes", color: "#eab308", icon: "🧂" },
   { id: "outros", label: "Outros", color: "#64748b", icon: "📋" },
 ];
 

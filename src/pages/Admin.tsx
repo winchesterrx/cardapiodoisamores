@@ -19,6 +19,7 @@ import AdminReports from "./AdminReports";
 import AdminCouriers from "./AdminCouriers";
 import AdminPDV from "./AdminPDV";
 import AdminExpenses from "./AdminExpenses";
+import EditOrderModal from "@/components/admin/EditOrderModal";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -66,6 +67,7 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
   const [orderFilter, setOrderFilter] = useState<OrderStatus | "todos">("todos");
 
   // Category form
@@ -298,6 +300,11 @@ export default function Admin() {
     await refetchOrders();
   };
 
+  const handleSaveOrderEdit = async (orderId: string, data: any) => {
+    await API.put(`/orders/${orderId}`, data);
+    await refetchOrders();
+  };
+
   const handleDeleteOrder = async (orderId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este pedido permanentemente? Esta ação não pode ser desfeita.")) {
       await API.del(`/orders/${orderId}`);
@@ -509,6 +516,10 @@ export default function Admin() {
                             <button onClick={() => handlePrintOrder(order)}
                               className="bg-muted text-muted-foreground text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1">
                               <Printer size={14} /> Imprimir
+                            </button>
+                            <button onClick={() => setEditingOrderForModal(order)}
+                              className="bg-muted text-muted-foreground text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1">
+                              <Pencil size={14} /> Editar
                             </button>
                             {order.status !== "cancelado" && order.status !== "entregue" && (
                               <button onClick={() => handleUpdateOrderStatus(order.id, "cancelado")}
@@ -1136,6 +1147,13 @@ export default function Admin() {
           </div>
         )}
       </div>
+      <EditOrderModal
+        isOpen={editingOrderForModal !== null}
+        onClose={() => setEditingOrderForModal(null)}
+        order={editingOrderForModal}
+        products={products}
+        onSave={handleSaveOrderEdit}
+      />
     </div>
   );
 }

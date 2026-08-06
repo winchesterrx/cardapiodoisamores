@@ -594,7 +594,7 @@ app.post('/api/expense-shortcuts', authenticateToken, async (req, res) => {
     
     const [result] = await db.query(
       'INSERT INTO expense_shortcuts (description, category, suggested_amount) VALUES (?, ?, ?)',
-      [description, category, suggested_amount || '']
+      [description, category, suggested_amount ? suggested_amount : null]
     );
     res.status(201).json({ id: result.insertId, message: 'Atalho criado com sucesso' });
   } catch (error) {
@@ -608,7 +608,7 @@ app.put('/api/expense-shortcuts/:id', authenticateToken, async (req, res) => {
     const { description, category, suggested_amount } = req.body;
     await db.query(
       'UPDATE expense_shortcuts SET description = ?, category = ?, suggested_amount = ? WHERE id = ?',
-      [description, category, suggested_amount || '', req.params.id]
+      [description, category, suggested_amount ? suggested_amount : null, req.params.id]
     );
     res.json({ message: 'Atalho atualizado com sucesso' });
   } catch (error) {
@@ -707,6 +707,55 @@ app.get('/api/orders', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao buscar pedidos' });
+  }
+});
+
+app.put('/api/orders/:id', async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const orderId = req.params.id;
+    const { total, items, status, deliveryFee, discountAmount } = req.body;
+    
+    await connection.query(
+      'UPDATE orders SET total = ?, status = ?, delivery_fee = ?, discount_amount = ? WHERE id = ?',
+      [total, status || 'recebido', deliveryFee || 0, discountAmount || 0, orderId]
+    );
+
+    const [oldItems] = await connection.query('SELECT id FROM order_items WHERE order_id = ?', [orderId]);
+    const oldItemIds = oldItems.map(i => i.id);
+    if (oldItemIds.length > 0) {
+      const placeholders = oldItemIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM order_item_addons WHERE order_item_id IN (${placeholders})`, oldItemIds);
+    }
+    
+    await connection.query('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+
+    for (const item of items) {
+      const [resultItem] = await connection.query(
+        'INSERT INTO order_items (order_id, product_name, product_price, quantity, notes) VALUES (?, ?, ?, ?, ?)',
+        [orderId, item.productName, item.productPrice, item.quantity, item.notes || '']
+      );
+      const orderItemId = resultItem.insertId;
+
+      if (item.addons && item.addons.length > 0) {
+        for (const addon of item.addons) {
+          await connection.query(
+            'INSERT INTO order_item_addons (order_item_id, name, price, quantity) VALUES (?, ?, ?, ?)',
+            [orderItemId, addon.name, addon.price, addon.quantity]
+          );
+        }
+      }
+    }
+    
+    await connection.commit();
+    res.json({ message: 'Pedido atualizado com sucesso' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Erro ao atualizar pedido:', error);
+    res.status(500).json({ error: 'Erro ao atualizar pedido' });
+  } finally {
+    connection.release();
   }
 });
 

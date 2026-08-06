@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (orderData: any) => void;
+  onConfirm: (orderData: any) => Promise<void> | void;
   total: number;
   discount: number;
   storeSettings: StoreSettings | null;
@@ -37,7 +37,14 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [status, setStatus] = useState("entregue");
   const [driverId, setDriverId] = useState("");
   const [drivers, setDrivers] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
+  
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && token) {
@@ -132,7 +139,7 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
     return Number(storeSettings?.delivery_fee || 0);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (consume === "Entrega" && (!street.trim() || !number.trim() || !neighborhood.trim())) {
       alert("Para entregas, preencha rua, número e bairro.");
       return;
@@ -142,18 +149,23 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
       return;
     }
 
-    onConfirm({
-      consumeType: consume,
-      paymentMethod: payment,
-      customerName: customerName.trim() || "Balcão",
-      customerWhatsApp: customerWhatsApp.replace(/\D/g, ""),
-      address: consume === "Entrega" ? fullAddress : undefined,
-      deliveryFee: getEffectiveDeliveryFee(),
-      discountAmount: discount,
-      customDate: customDate,
-      status: status,
-      driverId: consume === "Entrega" && driverId ? parseInt(driverId) : undefined,
-    });
+    setIsSubmitting(true);
+    try {
+      await onConfirm({
+        consumeType: consume,
+        paymentMethod: payment,
+        customerName: customerName.trim() || "Balcão",
+        customerWhatsApp: customerWhatsApp.replace(/\D/g, ""),
+        address: consume === "Entrega" ? fullAddress : undefined,
+        deliveryFee: getEffectiveDeliveryFee(),
+        discountAmount: discount,
+        customDate: customDate,
+        status: status,
+        driverId: consume === "Entrega" && driverId ? parseInt(driverId) : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const effectiveFee = getEffectiveDeliveryFee();
@@ -552,10 +564,20 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
 
               <button
                 onClick={handleSubmit}
-                className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 active:scale-[0.98] text-primary-foreground font-bold text-base rounded-2xl transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 active:scale-[0.98] text-primary-foreground font-bold text-base rounded-2xl transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <CheckCircle2 size={20} />
-                Registrar Pedido — {fmt(finalTotal)}
+                {isSubmitting ? (
+                  <>
+                    <span className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full"></span>
+                    Finalizando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    Finalizar Venda
+                  </>
+                )}
               </button>
             </div>
           </motion.div>

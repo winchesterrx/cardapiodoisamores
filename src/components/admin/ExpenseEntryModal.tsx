@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Plus, Trash2, Camera, X, Save, ShoppingBag, Building2, Calendar, Hash, Sparkles, Check, Copy, Loader2 } from "lucide-react";
 import { ExpenseShortcut } from "@/pages/AdminExpenses";
 
@@ -40,6 +40,21 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
   const [noteRef, setNoteRef] = useState("");
   const [noteDate, setNoteDate] = useState(todayStr());
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [noteDiscount, setNoteDiscount] = useState("");
+  const [noteAddition, setNoteAddition] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormItems([{ id: uid(), date: todayStr(), category: "materia-prima", description: "", size: "", amount: "" }]);
+      setSupplier("");
+      setNoteRef("");
+      setNoteDate(todayStr());
+      setNoteDiscount("");
+      setNoteAddition("");
+      setOcrSuggestions([]);
+      setOcrPreview(null);
+    }
+  }, [isOpen]);
   
   // OCR State
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -139,11 +154,19 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
   };
 
   const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const finalTotal = formTotal + (parseFloat(noteAddition) || 0) - (parseFloat(noteDiscount) || 0);
 
   const handleSubmit = async () => {
-    const valid = formItems.filter(i => i.description.trim() && parseFloat(i.amount) > 0);
+    let valid = formItems.filter(i => i.description.trim() && parseFloat(i.amount) > 0);
     if (valid.length === 0) { alert("Preencha ao menos um item com descrição e valor."); return; }
     
+    if (parseFloat(noteDiscount) > 0) {
+      valid.push({ id: uid(), date: noteDate, category: "outros", description: "Desconto na Nota", size: "", amount: (-parseFloat(noteDiscount)).toString() });
+    }
+    if (parseFloat(noteAddition) > 0) {
+      valid.push({ id: uid(), date: noteDate, category: "outros", description: "Acréscimo na Nota", size: "", amount: noteAddition.toString() });
+    }
+
     await onSave(supplier, noteRef, noteDate, valid);
   };
 
@@ -293,9 +316,21 @@ export default function ExpenseEntryModal({ isOpen, onClose, onSave, shortcuts, 
               <button onClick={addEmptyItem} className="flex items-center gap-2 text-sm font-medium text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-colors w-full md:w-auto justify-center">
                 <Plus size={16} /> Adicionar Novo Item
               </button>
-              <div className="text-right w-full md:w-auto">
-                <p className="text-xs text-muted-foreground uppercase font-semibold">Total da Nota</p>
-                <p className="text-2xl font-bold text-foreground tracking-tight">R$ {formTotal.toFixed(2)}</p>
+              <div className="flex gap-4 flex-wrap justify-end">
+                <div className="text-right w-full md:w-auto">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">Desconto (R$)</p>
+                  <input type="number" step="0.01" min="0" value={noteDiscount} onChange={e => setNoteDiscount(e.target.value)}
+                    className="w-24 text-right border border-border rounded-xl px-2 py-1 text-sm bg-background focus:ring-1 focus:ring-ring" placeholder="0.00" />
+                </div>
+                <div className="text-right w-full md:w-auto">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">Acréscimo (R$)</p>
+                  <input type="number" step="0.01" min="0" value={noteAddition} onChange={e => setNoteAddition(e.target.value)}
+                    className="w-24 text-right border border-border rounded-xl px-2 py-1 text-sm bg-background focus:ring-1 focus:ring-ring" placeholder="0.00" />
+                </div>
+                <div className="text-right w-full md:w-auto">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">Total da Nota</p>
+                  <p className="text-2xl font-bold text-foreground tracking-tight">R$ {finalTotal.toFixed(2)}</p>
+                </div>
               </div>
             </div>
           </div>
