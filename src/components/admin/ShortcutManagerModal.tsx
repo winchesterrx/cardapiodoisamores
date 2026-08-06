@@ -40,23 +40,30 @@ export default function ShortcutManagerModal({ isOpen, onClose, shortcuts, token
     try {
       const method = editingId ? "PUT" : "POST";
       const url = editingId ? `${API_URL}/expense-shortcuts/${editingId}` : `${API_URL}/expense-shortcuts`;
+      const parsedAmount = suggestedAmount 
+        ? parseFloat(String(suggestedAmount).replace(',', '.')) 
+        : 0;
+        
       const res = await fetch(url, {
         method,
         headers: getAuthHeader(),
         body: JSON.stringify({ 
           description, 
           category, 
-          suggested_amount: suggestedAmount ? parseFloat(suggestedAmount) : 0 
+          suggested_amount: parsedAmount
         })
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(errData.error || "Erro desconhecido na API");
+      }
       onUpdated();
       setEditingId(null);
       setIsAdding(false);
       setDescription("");
       setSuggestedAmount("");
-    } catch {
-      alert("Erro ao salvar atalho.");
+    } catch (err: any) {
+      alert(`Erro ao salvar atalho: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -128,7 +135,7 @@ export default function ShortcutManagerModal({ isOpen, onClose, shortcuts, token
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Valor Sugerido (opcional)</label>
-                  <input type="number" step="0.01" value={suggestedAmount} onChange={e => setSuggestedAmount(e.target.value)} className="w-full text-sm border border-border rounded-xl px-3 py-2 bg-background focus:ring-1 focus:ring-primary" placeholder="0.00" />
+                  <input type="text" value={suggestedAmount} onChange={e => setSuggestedAmount(e.target.value)} className="w-full text-sm border border-border rounded-xl px-3 py-2 bg-background focus:ring-1 focus:ring-primary" placeholder="0,00" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
