@@ -351,19 +351,22 @@ export default function Admin() {
   const handlePrintOrder = (order: Order) => {
     const printContent = `
       <html><head><title>Pedido #${order.number}</title>
-      <style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}
-      h1{font-size:18px;text-align:center;border-bottom:2px dashed #000;padding-bottom:8px}
-      .item{margin:4px 0}.total{font-size:16px;font-weight:bold;border-top:2px dashed #000;padding-top:8px;margin-top:8px}
-      .info{font-size:12px;margin-top:8px;border-top:1px dashed #000;padding-top:8px}
+      <style>
+      @page { margin: 0; }
+      body { font-family: monospace; padding: 10px; width: 58mm; margin: 0 auto; box-sizing: border-box; font-size: 12px; }
+      h1 { font-size: 16px; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 5px; margin: 5px 0; }
+      .item { margin: 4px 0; font-size: 12px; }
+      .total { font-size: 14px; font-weight: bold; border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; text-align: right; }
+      .info { font-size: 11px; margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
       </style></head><body>
-      <h1>Doces Gourmet <br>Pedido #${order.number}</h1>
-      <p style="font-size:12px;text-align:center">${new Date(order.createdAt).toLocaleString("pt-BR")}</p>
+      <h1>Açaí Dois Amores <br>Pedido #${order.number}</h1>
+      <p style="font-size:11px;text-align:center;margin:0 0 5px 0;">${new Date(order.createdAt).toLocaleString("pt-BR")}</p>
       ${order.items.map((i) => `<div class="item"><strong>${i.quantity}x ${i.productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2).replace('.', ',')}${i.addons.length > 0 ? `<br>&nbsp;&nbsp;+ ${i.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}` : ""}${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`).join("")}
       <div class="total">TOTAL: R$ ${order.total.toFixed(2).replace('.', ',')}</div>
       <div class="info">
-      <p>🛒 ${order.consumeType}${order.address ? ` - ${order.address}` : ""}${order.mesa ? ` - Mesa ${order.mesa}` : ""}</p>
-      <p>💳 ${order.paymentMethod}</p>
-      <p>📱 ${order.customerWhatsApp}</p>
+      <p style="margin:2px 0;">🛒 ${order.consumeType}${order.address ? ` - ${order.address}` : ""}${order.mesa ? ` - Mesa ${order.mesa}` : ""}</p>
+      <p style="margin:2px 0;">💳 ${order.paymentMethod}</p>
+      <p style="margin:2px 0;">📱 ${order.customerWhatsApp}</p>
       </div></body></html>`;
     const w = window.open("", "_blank");
     if (w) { w.document.write(printContent); w.document.close(); w.print(); }
