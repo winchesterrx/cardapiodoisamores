@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import AdminCouriers from "./AdminCouriers";
 import AdminPDV from "./AdminPDV";
 import AdminExpenses from "./AdminExpenses";
 import EditOrderModal from "@/components/admin/EditOrderModal";
+import { printOrder } from "@/utils/printUtils";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -61,7 +62,7 @@ export default function Admin() {
     return all.filter((u: any) => u.role === 'courier');
   }});
   const { data: addons = [], refetch: refetchAddons } = useQuery({ queryKey: ['addons'], queryFn: fetchAddons });
-  const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
+  const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders, refetchInterval: 15000 });
   const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
   const { data: brands = [], refetch: refetchBrands } = useQuery({ queryKey: ['brands'], queryFn: fetchBrands });
   const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports" | "couriers" | "pdv" | "expenses">("orders");
@@ -348,28 +349,34 @@ export default function Admin() {
     window.open(`https://wa.me/55${order.customerWhatsApp}?text=${message}`, "_blank");
   };
 
+  // Auto-print logic
+  const lastPrintedOrderRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      const highestId = Math.max(...orders.map(o => o.id || 0));
+      
+      // Initialize on first load without printing everything
+      if (lastPrintedOrderRef.current === null) {
+        lastPrintedOrderRef.current = highestId;
+        return;
+      }
+      
+      // If there are new orders, print them
+      if (highestId > lastPrintedOrderRef.current) {
+        const newOrders = orders.filter(o => (o.id || 0) > lastPrintedOrderRef.current!);
+        newOrders.forEach(order => {
+          if (order.status === 'novo' || order.status === 'recebido') {
+            printOrder(order);
+          }
+        });
+        lastPrintedOrderRef.current = highestId;
+      }
+    }
+  }, [orders]);
+
   const handlePrintOrder = (order: Order) => {
-    const printContent = `
-      <html><head><title>Pedido #${order.number}</title>
-      <style>
-      @page { margin: 0; }
-      body { font-family: monospace; padding: 10px; width: 58mm; margin: 0 auto; box-sizing: border-box; font-size: 12px; }
-      h1 { font-size: 16px; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 5px; margin: 5px 0; }
-      .item { margin: 4px 0; font-size: 12px; }
-      .total { font-size: 14px; font-weight: bold; border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; text-align: right; }
-      .info { font-size: 11px; margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-      </style></head><body>
-      <h1>Açaí Dois Amores <br>Pedido #${order.number}</h1>
-      <p style="font-size:11px;text-align:center;margin:0 0 5px 0;">${new Date(order.createdAt).toLocaleString("pt-BR")}</p>
-      ${order.items.map((i) => `<div class="item"><strong>${i.quantity}x ${i.productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2).replace('.', ',')}${i.addons.length > 0 ? `<br>&nbsp;&nbsp;+ ${i.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}` : ""}${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`).join("")}
-      <div class="total">TOTAL: R$ ${order.total.toFixed(2).replace('.', ',')}</div>
-      <div class="info">
-      <p style="margin:2px 0;">🛒 ${order.consumeType}${order.address ? ` - ${order.address}` : ""}${order.mesa ? ` - Mesa ${order.mesa}` : ""}</p>
-      <p style="margin:2px 0;">💳 ${order.paymentMethod}</p>
-      <p style="margin:2px 0;">📱 ${order.customerWhatsApp}</p>
-      </div></body></html>`;
-    const w = window.open("", "_blank");
-    if (w) { w.document.write(printContent); w.document.close(); w.print(); }
+    printOrder(order);
   };
 
   const refreshOrders = () => refetchOrders();
