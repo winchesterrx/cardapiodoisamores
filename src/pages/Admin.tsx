@@ -398,7 +398,7 @@ export default function Admin() {
       <header className="bg-card shadow-card px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-primary text-primary-foreground rounded-lg p-2"><Settings size={20} /></div>
-          <h1 className="text-xl font-display text-foreground">Jessica Vanessa - Admin</h1>
+          <h1 className="text-xl font-display text-foreground">Tamires</h1>
         </div>
         <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
           <LogOut size={16} /> Sair
