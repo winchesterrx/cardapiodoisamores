@@ -52,13 +52,21 @@ export const printOrder = (order: Order) => {
 
     // Wait a brief moment for the content to render before printing
     setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      
-      // Remove iframe after printing dialog closes (or immediately for kiosk)
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 250);
+      const win = iframe.contentWindow;
+      if (win) {
+        win.focus();
+        
+        // Remove iframe only after printing is done or canceled
+        win.onafterprint = () => {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1000);
+        };
+
+        win.print();
+      }
+    }, 500);
   }
 };
