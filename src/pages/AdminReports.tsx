@@ -856,24 +856,59 @@ function exportCourierCSV(couriers: CourierSummary[], mode: "detailed" | "synthe
 function CourierReport({ orders }: { orders: Order[] }) {
   const [reportMode, setReportMode] = useState<"synthetic" | "detailed">("synthetic");
   const [expandedCourier, setExpandedCourier] = useState<string | null>(null);
-  const [courierPreset, setCourierPreset] = useState<"today" | "7d" | "30d" | "this_month">("today");
+  const [courierPreset, setCourierPreset] = useState<"today" | "yesterday" | "yesterday_today" | "7d" | "30d" | "this_month" | "custom">("today");
+  const [cStartDate, setCStartDate] = useState("");
+  const [cStartTime, setCStartTime] = useState("");
+  const [cEndDate, setCEndDate] = useState("");
+  const [cEndTime, setCEndTime] = useState("");
 
   const courierDateRange = useMemo(() => {
     const now = new Date();
     let start = new Date(now);
     let end = new Date(now);
     end.setHours(23, 59, 59, 999);
+    
     if (courierPreset === "today") {
       start.setHours(0, 0, 0, 0);
+    } else if (courierPreset === "yesterday") {
+      start.setDate(now.getDate() - 1); start.setHours(0, 0, 0, 0);
+      end = new Date(start); end.setHours(23, 59, 59, 999);
+    } else if (courierPreset === "yesterday_today") {
+      start.setDate(now.getDate() - 1); start.setHours(0, 0, 0, 0);
     } else if (courierPreset === "7d") {
       start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0);
     } else if (courierPreset === "30d") {
       start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0);
     } else if (courierPreset === "this_month") {
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    } else if (courierPreset === "custom") {
+      if (cStartDate) {
+        const d = new Date(cStartDate + "T00:00:00");
+        if (cStartTime) {
+          const [h, m] = cStartTime.split(':');
+          d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+        } else {
+          d.setHours(0, 0, 0, 0);
+        }
+        start = d;
+      } else {
+        start = new Date(0);
+      }
+      if (cEndDate) {
+        const d = new Date(cEndDate + "T00:00:00");
+        if (cEndTime) {
+          const [h, m] = cEndTime.split(':');
+          d.setHours(parseInt(h, 10), parseInt(m, 10), 59, 999);
+        } else {
+          d.setHours(23, 59, 59, 999);
+        }
+        end = d;
+      } else {
+        end = new Date();
+      }
     }
     return { start, end };
-  }, [courierPreset]);
+  }, [courierPreset, cStartDate, cStartTime, cEndDate, cEndTime]);
 
   const dateLabel = `${courierDateRange.start.toLocaleDateString("pt-BR")} – ${courierDateRange.end.toLocaleDateString("pt-BR")}`;
 
@@ -929,17 +964,20 @@ function CourierReport({ orders }: { orders: Order[] }) {
 
         {/* Controles */}
         <div className="flex flex-wrap gap-2">
-          <div className="flex bg-muted rounded-xl p-1 gap-0.5">
+          <div className="flex flex-wrap bg-muted rounded-xl p-1 gap-0.5">
             {[
               { value: "today", label: "Hoje" },
+              { value: "yesterday", label: "Ontem" },
+              { value: "yesterday_today", label: "Ontem+Hoje" },
               { value: "7d", label: "7 dias" },
               { value: "30d", label: "30 dias" },
               { value: "this_month", label: "Este mês" },
+              { value: "custom", label: "Personalizado" },
             ].map(p => (
               <button
                 key={p.value}
                 onClick={() => setCourierPreset(p.value as any)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   courierPreset === p.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -947,10 +985,24 @@ function CourierReport({ orders }: { orders: Order[] }) {
               </button>
             ))}
           </div>
+          {courierPreset === "custom" && (
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in-95">
+              <div className="flex items-center gap-1">
+                <input type="date" value={cStartDate} onChange={e => setCStartDate(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-background text-foreground focus:outline-none" />
+                <input type="time" value={cStartTime} onChange={e => setCStartTime(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-background text-foreground focus:outline-none" title="Vazio = 00:00" />
+              </div>
+              <span className="text-muted-foreground text-xs font-semibold">até</span>
+              <div className="flex items-center gap-1">
+                <input type="date" value={cEndDate} onChange={e => setCEndDate(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-background text-foreground focus:outline-none" />
+                <input type="time" value={cEndTime} onChange={e => setCEndTime(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-background text-foreground focus:outline-none" title="Vazio = 23:59" />
+              </div>
+            </div>
+          )}
+
           <div className="flex bg-muted rounded-xl p-1 gap-0.5">
             <button
               onClick={() => setReportMode("synthetic")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 reportMode === "synthetic" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
