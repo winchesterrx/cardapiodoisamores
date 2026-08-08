@@ -39,9 +39,12 @@ export const printOrder = (order: Order) => {
 
   // Create a hidden iframe
   const iframe = document.createElement("iframe");
-  iframe.style.position = "absolute";
-  iframe.style.top = "-9999px";
-  iframe.style.left = "-9999px";
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
@@ -54,18 +57,21 @@ export const printOrder = (order: Order) => {
     setTimeout(() => {
       const win = iframe.contentWindow;
       if (win) {
+        iframe.focus();
         win.focus();
         
-        // Remove iframe only after printing is done or canceled
-        win.onafterprint = () => {
-          setTimeout(() => {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe);
-            }
-          }, 1000);
-        };
+        try {
+          win.print();
+        } catch (e) {
+          console.error("Print failed", e);
+        }
 
-        win.print();
+        // Clean up iframe after a delay to allow print dialog to open and close
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 2000);
       }
     }, 500);
   }
