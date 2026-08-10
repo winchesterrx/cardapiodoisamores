@@ -19,12 +19,20 @@ export const printOrder = (order: Order) => {
         <p style="font-size:11px;text-align:center;margin:0 0 5px 0;">${new Date(order.createdAt).toLocaleString("pt-BR")}</p>
         ${order.items
           .map(
-            (i) =>
-              `<div class="item"><strong>${i.quantity}x ${i.productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2).replace(".", ",")}${
+            (i) => {
+              let productName = i.productName;
+              const lower = productName.toLowerCase();
+              if (lower.includes("açaí") || lower.includes("acai")) {
+                if (lower.includes("pequeno")) productName += " (300ml)";
+                else if (lower.includes("médio") || lower.includes("medio")) productName += " (500ml)";
+                else if (lower.includes("grande")) productName += " (700ml)";
+              }
+              return `<div class="item"><strong>${i.quantity}x ${productName}</strong> - R$ ${(i.productPrice * i.quantity).toFixed(2).replace(".", ",")}${
                 i.addons && i.addons.length > 0
-                  ? `<br>&nbsp;&nbsp;+ ${i.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}`
+                  ? i.addons.map((a) => `<br>&nbsp;&nbsp;+ ${a.quantity}x ${a.name}`).join("")
                   : ""
-              }${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`
+              }${i.notes ? `<br>&nbsp;&nbsp;<em>"${i.notes}"</em>` : ""}</div>`;
+            }
           )
           .join("")}
         <div class="total">TOTAL: R$ ${order.total.toFixed(2).replace(".", ",")}</div>
