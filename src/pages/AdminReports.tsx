@@ -920,17 +920,18 @@ function CourierReport({ orders }: { orders: Order[] }) {
   const deliveryOrders = useMemo(() => {
     return orders.filter(o => {
       const hasCourier = !!(o.courierName && o.courierName.trim());
+      const hasFee = (o.deliveryFee || 0) > 0;
       const notCancelled = o.status !== "cancelado";
       const d = new Date(o.createdAt);
       const inRange = d >= courierDateRange.start && d <= courierDateRange.end;
-      return hasCourier && notCancelled && inRange;
+      return (hasCourier || hasFee) && notCancelled && inRange;
     });
   }, [orders, courierDateRange]);
 
   const couriers = useMemo(() => {
     const map: Record<string, Order[]> = {};
     deliveryOrders.forEach(o => {
-      const name = o.courierName || "Sem nome";
+      const name = (o.courierName && o.courierName.trim()) ? o.courierName : "Sem Entregador (Taxa Cobrada)";
       if (!map[name]) map[name] = [];
       map[name].push(o);
     });
