@@ -289,12 +289,13 @@ export default function Admin() {
     const order = orders.find(o => o.id === orderId);
     if (order?.origin === 'ifood') {
       try {
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
         if (newStatus === 'confirmado') {
-          await API.post(`/ifood/confirm/${orderId}`, {});
+          await fetch(`${API_URL}/ifood/confirm/${orderId}`, { method: 'POST', headers, body: JSON.stringify({}) });
         } else if (newStatus === 'despachado') {
-          await API.post(`/ifood/dispatch/${orderId}`, {});
+          await fetch(`${API_URL}/ifood/dispatch/${orderId}`, { method: 'POST', headers, body: JSON.stringify({}) });
         } else if (newStatus === 'cancelado') {
-          await API.post(`/ifood/cancel/${orderId}`, {});
+          await fetch(`${API_URL}/ifood/cancel/${orderId}`, { method: 'POST', headers, body: JSON.stringify({}) });
         }
       } catch (err) {
         console.error("Erro na API do iFood:", err);
@@ -316,8 +317,9 @@ export default function Admin() {
     try {
       await Promise.all(ordersToUpdate.map(async o => {
         if (o.origin === 'ifood') {
-          if (newStatus === 'confirmado') await API.post(`/ifood/confirm/${o.id}`, {}).catch(()=>{});
-          else if (newStatus === 'despachado') await API.post(`/ifood/dispatch/${o.id}`, {}).catch(()=>{});
+          const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+          if (newStatus === 'confirmado') await fetch(`${API_URL}/ifood/confirm/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(()=>{});
+          else if (newStatus === 'despachado') await fetch(`${API_URL}/ifood/dispatch/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(()=>{});
         }
         return API.put(`/orders/${o.id}/status`, { status: newStatus });
       }));
@@ -510,11 +512,18 @@ export default function Admin() {
                       <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)} className="w-full p-4 text-left">
                         <div className="flex items-start justify-between mb-1">
                           <div>
-                            <span className="text-sm font-bold text-primary">#{order.number}</span>
+                            <div className="flex items-center">
+                              <span className="text-sm font-bold text-primary">#{order.number}</span>
+                              {order.origin === 'ifood' && (
+                                <span className="ml-2 text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">iFood</span>
+                              )}
+                              <span className="text-xs text-muted-foreground ml-2">{formatDate(order.createdAt)}</span>
+                            </div>
                             {order.origin === 'ifood' && (
-                              <span className="ml-2 text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">iFood</span>
+                              <div className="text-[10px] text-muted-foreground mt-0.5 opacity-80 select-all font-mono">
+                                ID: {order.id}
+                              </div>
                             )}
-                            <span className="text-xs text-muted-foreground ml-2">{formatDate(order.createdAt)}</span>
                           </div>
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${st.color}`}>
                             <StatusIcon size={12} /> {st.label}

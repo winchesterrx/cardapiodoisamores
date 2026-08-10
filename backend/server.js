@@ -9,7 +9,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import webpush from 'web-push';
 import crypto from 'crypto';
-import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, cancelIfoodOrder } from './ifoodIntegration.js';
+import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, readyToPickupIfoodOrder, cancelIfoodOrder } from './ifoodIntegration.js';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
@@ -950,6 +950,28 @@ app.put('/api/orders/:id/status', async (req, res) => {
       await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
     }
     await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [id, status]);
+
+    // INTEGRAÇÃO IFOOD: Notifica a mudança de status se a origem for iFood
+    const [orderInfo] = await db.query('SELECT origin, consume_type FROM orders WHERE id = ?', [id]);
+    const isIfood = orderInfo.length > 0 && orderInfo[0].origin === 'ifood';
+    const consumeType = orderInfo.length > 0 ? orderInfo[0].consume_type : 'delivery';
+
+    if (isIfood) {
+      try {
+        if (status === 'confirmado' || status === 'preparando') {
+           await confirmIfoodOrder(id);
+        } else if (status === 'despachado') {
+           await dispatchIfoodOrder(id);
+        } else if (status === 'cancelado') {
+           await cancelIfoodOrder(id);
+        } else if (status === 'pronto' && consumeType === 'takeout') {
+           // readyToPickup só é válido no iFood para pedidos do tipo Retirada (TAKEOUT)
+           await readyToPickupIfoodOrder(id);
+        }
+      } catch (ifoodErr) {
+        console.error('Erro ao notificar iFood da mudança de status:', ifoodErr);
+      }
+    }
     
     // Tenta disparar o web-push se configurado
     if (publicVapidKey) {
@@ -1222,7 +1244,7 @@ app.post('/api/ifood/confirm/:id', authenticateToken, async (req, res) => {
   try {
     const success = await confirmIfoodOrder(req.params.id);
     if (success) {
-      await db.query('UPDATE orders SET status = "confirmado" WHERE id = ?', [req.params.id]);
+      await db.query('UPDATE orders SET status = \'confirmado\' WHERE id = ?', [req.params.id]);
       await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'confirmado']);
       res.json({ message: 'Confirmado com sucesso no iFood' });
     } else {
@@ -1237,7 +1259,7 @@ app.post('/api/ifood/dispatch/:id', authenticateToken, async (req, res) => {
   try {
     const success = await dispatchIfoodOrder(req.params.id);
     if (success) {
-      await db.query('UPDATE orders SET status = "despachado" WHERE id = ?', [req.params.id]);
+      await db.query('UPDATE orders SET status = \'despachado\' WHERE id = ?', [req.params.id]);
       await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'despachado']);
       res.json({ message: 'Despachado com sucesso no iFood' });
     } else {
@@ -1252,7 +1274,7 @@ app.post('/api/ifood/cancel/:id', authenticateToken, async (req, res) => {
   try {
     const success = await cancelIfoodOrder(req.params.id);
     if (success) {
-      await db.query('UPDATE orders SET status = "cancelado" WHERE id = ?', [req.params.id]);
+      await db.query('UPDATE orders SET status = \'cancelado\' WHERE id = ?', [req.params.id]);
       await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [req.params.id, 'cancelado']);
       res.json({ message: 'Cancelado com sucesso no iFood' });
     } else {
