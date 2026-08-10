@@ -8,12 +8,24 @@ interface Props {
   product: Product | null;
   onClose: () => void;
   onAdd: (product: Product, quantity: number, addons: SelectedAddon[], notes: string) => void;
+  initialQuantity?: number;
+  initialAddonQuantities?: Record<string, number>;
+  initialNotes?: string;
+  isEditing?: boolean;
 }
 
-export default function PDVProductModal({ product, onClose, onAdd }: Props) {
-  const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
-  const [notes, setNotes] = useState("");
-  const [quantity, setQuantity] = useState(1);
+export default function PDVProductModal({ 
+  product, 
+  onClose, 
+  onAdd,
+  initialQuantity = 1,
+  initialAddonQuantities = {},
+  initialNotes = "",
+  isEditing = false
+}: Props) {
+  const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>(initialAddonQuantities);
+  const [notes, setNotes] = useState(initialNotes);
+  const [quantity, setQuantity] = useState(initialQuantity);
 
   if (!product) return null;
 
@@ -138,7 +150,7 @@ export default function PDVProductModal({ product, onClose, onAdd }: Props) {
                 </button>
               </div>
               <Button onClick={handleAdd} className="flex-1 h-12 text-lg">
-                Adicionar (R$ {itemTotal.toFixed(2)})
+                {isEditing ? `Salvar (R$ ${itemTotal.toFixed(2)})` : `Adicionar (R$ ${itemTotal.toFixed(2)})`}
               </Button>
             </div>
           </div>

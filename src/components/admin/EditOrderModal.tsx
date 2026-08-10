@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { X, Trash2, Plus, Minus, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Order, Product, Addon } from "@/data/menuData";
+import { Pencil } from "lucide-react";
+import PDVProductModal from "./PDVProductModal";
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +20,14 @@ export default function EditOrderModal({ isOpen, onClose, onSave, order, product
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
+  const [modalConfig, setModalConfig] = useState<{
+    product: Product;
+    isEditing: boolean;
+    initialQty: number;
+    initialAddons: Record<string, number>;
+    initialNotes: string;
+    itemIdx?: number;
+  } | null>(null);
 
   useEffect(() => {
     if (order && isOpen) {
@@ -69,21 +79,106 @@ export default function EditOrderModal({ isOpen, onClose, onSave, order, product
     setItems(newItems);
   };
 
-  const handleAddProduct = () => {
+  const handleAddProductClick = () => {
     if (!selectedProductId) return;
     const prod = products.find(p => p.id === selectedProductId);
     if (prod) {
+      if (prod.addons && prod.addons.length > 0) {
+        setModalConfig({
+          product: prod,
+          isEditing: false,
+          initialQty: 1,
+          initialAddons: {},
+          initialNotes: ""
+        });
+      } else {
+        setItems([...items, {
+          id: Math.random().toString(),
+          productId: prod.id,
+          productName: prod.name,
+          productPrice: prod.price,
+          quantity: 1,
+          addons: [],
+          notes: ""
+        }]);
+        setShowAddProduct(false);
+        setSelectedProductId("");
+      }
+    }
+  };
+
+  const handleEditItem = (idx: number) => {
+    const item = items[idx];
+    let prod = products.find(p => p.id === item.productId || p.name === item.productName);
+    if (!prod) {
+      prod = {
+        id: item.productId || item.id,
+        name: item.productName,
+        price: item.productPrice,
+        description: "",
+        category: "",
+        addons: item.addons.map((a: any) => ({
+          id: a.name,
+          name: a.name,
+          price: a.price
+        }))
+      } as Product;
+    }
+    
+    const initialAddons: Record<string, number> = {};
+    if (item.addons) {
+      item.addons.forEach((a: any) => {
+        const addonInProd = prod?.addons?.find(pa => pa.name === a.name);
+        if (addonInProd) {
+          initialAddons[addonInProd.id] = a.quantity || 1;
+        } else {
+          initialAddons[a.name] = a.quantity || 1;
+        }
+      });
+    }
+
+    setModalConfig({
+      product: prod,
+      isEditing: true,
+      initialQty: item.quantity,
+      initialAddons,
+      initialNotes: item.notes || "",
+      itemIdx: idx
+    });
+  };
+
+  const handleModalAdd = (prod: Product, qty: number, addons: any[], notes: string) => {
+    if (modalConfig?.isEditing && modalConfig.itemIdx !== undefined) {
+      const newItems = [...items];
+      newItems[modalConfig.itemIdx] = {
+        ...newItems[modalConfig.itemIdx],
+        quantity: qty,
+        addons: addons.map(a => ({
+          name: a.addon.name,
+          price: a.addon.price,
+          quantity: a.quantity
+        })),
+        notes: notes
+      };
+      setItems(newItems);
+    } else {
       setItems([...items, {
         id: Math.random().toString(),
+        productId: prod.id,
         productName: prod.name,
         productPrice: prod.price,
-        quantity: 1,
-        addons: [],
-        notes: ""
+        quantity: qty,
+        addons: addons.map(a => ({
+          name: a.addon.name,
+          price: a.addon.price,
+          quantity: a.quantity
+        })),
+        notes: notes
       }]);
+      setShowAddProduct(false);
+      setSelectedProductId("");
     }
-    setShowAddProduct(false);
-    setSelectedProductId("");
+    setModalConfig(null);
   };
 
   return (
@@ -124,7 +219,7 @@ export default function EditOrderModal({ isOpen, onClose, onSave, order, product
                         <option key={p.id} value={p.id}>{p.name} - R$ {p.price.toFixed(2)}</option>
                       ))}
                     </select>
-                    <button onClick={handleAddProduct} className="bg-primary text-primary-foreground px-4 rounded-lg font-medium">Adicionar</button>
+                    <button onClick={handleAddProductClick} className="bg-primary text-primary-foreground px-4 rounded-lg font-medium">Adicionar</button>
                   </div>
                 )}
 
@@ -143,6 +238,7 @@ export default function EditOrderModal({ isOpen, onClose, onSave, order, product
                             <button onClick={() => updateItemQuantity(idx, -1)} className="p-1 border border-border rounded hover:bg-muted"><Minus size={14} /></button>
                             <span className="w-6 text-center font-medium">{item.quantity}</span>
                             <button onClick={() => updateItemQuantity(idx, 1)} className="p-1 border border-border rounded hover:bg-muted"><Plus size={14} /></button>
+                            <button onClick={() => handleEditItem(idx)} className="p-1 border border-border rounded hover:bg-muted text-primary"><Pencil size={14} /></button>
                             <button onClick={() => {
                               const newItems = [...items];
                               newItems.splice(idx, 1);
@@ -191,5 +287,18 @@ export default function EditOrderModal({ isOpen, onClose, onSave, order, product
         </div>
       )}
     </AnimatePresence>
+    
+    {modalConfig && (
+      <PDVProductModal 
+        product={modalConfig.product}
+        isEditing={modalConfig.isEditing}
+        initialQuantity={modalConfig.initialQty}
+        initialAddonQuantities={modalConfig.initialAddons}
+        initialNotes={modalConfig.initialNotes}
+        onClose={() => setModalConfig(null)}
+        onAdd={handleModalAdd}
+      />
+    )}
+    </>
   );
 }
