@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Minus, ShoppingCart, Trash2, Receipt, History, RefreshCw, Eye, Pencil, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import EditOrderModal from '@/components/admin/EditOrderModal';
 import type { Product, SelectedAddon, Order } from '@/data/menuData';
 
 export default function AdminPDV() {
+  const queryClient = useQueryClient();
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const [activeTab, setActiveTab] = useState<'pdv' | 'history'>('pdv');
   const [cart, setCart] = useState<any[]>([]);
@@ -42,6 +43,7 @@ export default function AdminPDV() {
       });
       if (res.ok) {
         setHistoryOrders(historyOrders.filter(o => o.id !== orderId));
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
       } else {
         alert("Erro ao excluir o pedido.");
       }
