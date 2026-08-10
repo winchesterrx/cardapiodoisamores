@@ -152,7 +152,7 @@ export default function AdminReports() {
 
   const metrics = useMemo(() => {
     const completedOrders = filteredOrders.filter(o => o.status !== "cancelado");
-    let totalRevenue = 0, totalDiscounts = 0;
+    let totalRevenue = 0, totalDiscounts = 0, totalDeliveryFees = 0;
     const paymentCounts: Record<string, number> = {};
     const consumeCounts: Record<string, number> = {};
     const productStats: Record<string, { qty: number; revenue: number }> = {};
@@ -165,18 +165,22 @@ export default function AdminReports() {
     const weekdayRevenue: Record<string, number> = {};
 
     completedOrders.forEach(order => {
-      totalRevenue += order.total;
+      const deliveryFee = order.deliveryFee || 0;
+      const orderRevenue = order.total - deliveryFee;
+
+      totalRevenue += orderRevenue;
+      totalDeliveryFees += deliveryFee;
       totalDiscounts += (order.discountAmount || 0);
 
       const dk = dayKey(order.createdAt);
-      dailyRevenue[dk] = (dailyRevenue[dk] || 0) + order.total;
+      dailyRevenue[dk] = (dailyRevenue[dk] || 0) + orderRevenue;
       dailyOrders[dk] = (dailyOrders[dk] || 0) + 1;
 
       const hk = hourKey(order.createdAt);
-      hourlyRevenue[hk] = (hourlyRevenue[hk] || 0) + order.total;
+      hourlyRevenue[hk] = (hourlyRevenue[hk] || 0) + orderRevenue;
 
       const wk = dayOfWeekKey(order.createdAt);
-      weekdayRevenue[wk] = (weekdayRevenue[wk] || 0) + order.total;
+      weekdayRevenue[wk] = (weekdayRevenue[wk] || 0) + orderRevenue;
 
       const pm = order.paymentMethod || "Não informado";
       paymentCounts[pm] = (paymentCounts[pm] || 0) + 1;
@@ -222,7 +226,7 @@ export default function AdminReports() {
         }
         couponStats[cid].count += 1;
         couponStats[cid].discountGiven += (order.discountAmount || 0);
-        couponStats[cid].revenueGenerated += order.total;
+        couponStats[cid].revenueGenerated += orderRevenue;
       }
     });
 
@@ -252,7 +256,7 @@ export default function AdminReports() {
     const pieConsumeData = Object.entries(consumeCounts).map(([name, value]) => ({ name, value }));
 
     return {
-      totalRevenue, totalOrders: completedOrders.length, averageTicket, totalDiscounts, cancelledCount,
+      totalRevenue, totalOrders: completedOrders.length, averageTicket, totalDiscounts, cancelledCount, totalDeliveryFees,
       chartData, hourlyData, weekdayData,
       topProducts, topAddons, topCustomers, topCoupons, piePaymentData, pieConsumeData
     };
@@ -263,7 +267,7 @@ export default function AdminReports() {
   const margemLucro = metrics.totalRevenue > 0 ? (lucroLiquido / metrics.totalRevenue * 100) : 0;
 
   // Previous period comparisons
-  const prevRevenue = prevOrders.filter(o => o.status !== "cancelado").reduce((s, o) => s + o.total, 0);
+  const prevRevenue = prevOrders.filter(o => o.status !== "cancelado").reduce((s, o) => s + (o.total - (o.deliveryFee || 0)), 0);
   const prevExpensesTotal = prevExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const prevLucro = prevRevenue - prevExpensesTotal;
 
@@ -358,10 +362,11 @@ export default function AdminReports() {
         )}
       </div>
 
-      {/* ── KPI Cards (8 cards) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {[
           { label: "Receita Bruta", value: fmt(metrics.totalRevenue), change: revenueChange, icon: <DollarSign size={18}/>, color: "emerald" },
+          { label: "Taxas de Entrega", value: fmt(metrics.totalDeliveryFees), change: 0, icon: <Bike size={18}/>, color: "blue" },
           { label: "Lucro Líquido", value: fmt(lucroLiquido), change: lucroChange, icon: <Wallet size={18}/>, color: lucroLiquido >= 0 ? "blue" : "rose" },
           { label: "Total Pedidos", value: String(metrics.totalOrders), change: ordersChange, icon: <ShoppingBag size={18}/>, color: "purple" },
           { label: "Ticket Médio", value: fmt(metrics.averageTicket), change: ticketChange, icon: <TrendingUp size={18}/>, color: "amber" },
