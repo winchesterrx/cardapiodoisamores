@@ -54,7 +54,10 @@ const MEASURE_UNITS = [
 ];
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
-function todayStr() { return new Date().toISOString().split("T")[0]; }
+function todayStr() { 
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function CheckCircle2(props: any) {
   return <Check {...props} />;

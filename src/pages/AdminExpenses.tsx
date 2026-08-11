@@ -99,8 +99,9 @@ export default function AdminExpenses() {
   const queryClient = useQueryClient();
 
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const firstDay = toLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+  const lastDay = toLocalYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   
   const [filterStart, setFilterStart] = useState(firstDay);
   const [filterEnd, setFilterEnd] = useState(lastDay);
@@ -126,8 +127,8 @@ export default function AdminExpenses() {
     queryFn: () => fetchExpenseShortcuts(token),
   });
 
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+  const lastMonthStart = toLocalYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const lastMonthEnd = toLocalYMD(new Date(now.getFullYear(), now.getMonth(), 0));
   const { data: lastMonthExpenses = [] } = useQuery({
     queryKey: ["expenses", lastMonthStart, lastMonthEnd],
     queryFn: () => fetchExpenses(token, lastMonthStart, lastMonthEnd),

@@ -33,7 +33,8 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
   const [payment, setPayment] = useState<PaymentMethod>("Dinheiro");
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
-  const [customDate, setCustomDate] = useState(new Date().toISOString().split("T")[0]);
+  const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [customDate, setCustomDate] = useState(toLocalYMD(new Date()));
   const [status, setStatus] = useState("entregue");
   const [driverId, setDriverId] = useState("");
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -53,7 +54,7 @@ export default function PDVCheckoutModal({ isOpen, onClose, onConfirm, total, di
       setPayment("Dinheiro");
       setCustomerName("");
       setCustomerWhatsApp("");
-      setCustomDate(new Date().toISOString().split("T")[0]);
+      setCustomDate(toLocalYMD(new Date()));
       setStatus("entregue");
       setDriverId("");
       setStreet("");

@@ -114,11 +114,13 @@ export default function AdminReports() {
 
   // ─── Fetch Expenses ───────────────────────────────────────────────────────────
 
+  const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const { data: expenses = [] } = useQuery<Expense[]>({
-    queryKey: ["expenses", dateRange.start.toISOString().split("T")[0], dateRange.end.toISOString().split("T")[0]],
+    queryKey: ["expenses", toLocalYMD(dateRange.start), toLocalYMD(dateRange.end)],
     queryFn: async () => {
-      const s = dateRange.start.toISOString().split("T")[0];
-      const e = dateRange.end.toISOString().split("T")[0];
+      const s = toLocalYMD(dateRange.start);
+      const e = toLocalYMD(dateRange.end);
       const res = await fetch(`${API_URL}/expenses?start=${s}&end=${e}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
@@ -126,10 +128,10 @@ export default function AdminReports() {
   });
 
   const { data: prevExpenses = [] } = useQuery<Expense[]>({
-    queryKey: ["expenses", prevRange.start.toISOString().split("T")[0], prevRange.end.toISOString().split("T")[0]],
+    queryKey: ["expenses", toLocalYMD(prevRange.start), toLocalYMD(prevRange.end)],
     queryFn: async () => {
-      const s = prevRange.start.toISOString().split("T")[0];
-      const e = prevRange.end.toISOString().split("T")[0];
+      const s = toLocalYMD(prevRange.start);
+      const e = toLocalYMD(prevRange.end);
       const res = await fetch(`${API_URL}/expenses?start=${s}&end=${e}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
