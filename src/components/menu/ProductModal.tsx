@@ -76,7 +76,7 @@ export default function ProductModal({ product, onClose }: Props) {
 
               {images.length > 0 ? (
                 <div className="w-full h-full relative group">
-                  <img src={images[currentImageIdx]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-300" />
+                  <img src={images[currentImageIdx]} alt={product.name} className="w-full h-full object-contain bg-white transition-opacity duration-300" />
                   
                   {images.length > 1 && (
                     <>
