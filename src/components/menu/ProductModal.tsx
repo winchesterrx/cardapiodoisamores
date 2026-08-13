@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Minus, Plus, ChevronLeft, ChevronRight, Package, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Product, SelectedAddon } from "@/data/menuData";
@@ -15,13 +15,38 @@ export default function ProductModal({ product, onClose }: Props) {
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [selectedComboSizeIdx, setSelectedComboSizeIdx] = useState<number>(0);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+
+  const safeParse = (data: any) => {
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch (e) { return []; }
+    }
+    return [];
+  };
+
+  const comboSizes = product?.comboSizes ? safeParse(product.comboSizes) : [];
+  const comboAddons = product?.comboAddons ? safeParse(product.comboAddons) : [];
+
+  useEffect(() => {
+    if (product?.isCombo && comboAddons.length > 0) {
+      const initialAddons: Record<string, number> = {};
+      comboAddons.forEach((ca: any) => {
+        initialAddons[ca.addonId] = ca.quantity;
+      });
+      setAddonQuantities(initialAddons);
+      setSelectedComboSizeIdx(0);
+    } else {
+      setAddonQuantities({});
+    }
+  }, [product]);
 
   if (!product) return null;
 
   const images = product.images?.length ? product.images : (product.image ? [product.image] : []);
 
-  const availableAddons = product.addons || [];
+  const availableAddons = Array.isArray(product.addons) ? product.addons : [];
 
   const setAddonQty = (addonId: string, qty: number) => {
     setAddonQuantities((prev) => {
@@ -33,16 +58,48 @@ export default function ProductModal({ product, onClose }: Props) {
     });
   };
 
+  const isAddonFree = (addonId: string) => {
+    if (!product?.isCombo || !comboAddons) return false;
+    const ca = comboAddons.find((a: any) => a.addonId === addonId);
+    return ca ? (ca.isFree !== false) : false;
+  };
+
   const selectedAddons: SelectedAddon[] = availableAddons
     .filter((a) => (addonQuantities[a.id] || 0) > 0)
-    .map((a) => ({ addon: a, quantity: addonQuantities[a.id] }));
+    .flatMap((a) => {
+      const qty = addonQuantities[a.id] || 0;
+      if (isAddonFree(a.id)) {
+        const freeAddon = { addon: { ...a, price: 0, name: `${a.name} (Incluso)` }, quantity: 1 };
+        if (qty > 1) {
+           return [freeAddon, { addon: a, quantity: qty - 1 }];
+        }
+        return [freeAddon];
+      }
+      return [{ addon: a, quantity: qty }];
+    });
 
-  const addonTotal = selectedAddons.reduce((s, sa) => s + Number(sa.addon.price) * Number(sa.quantity), 0);
-  const itemTotal = (Number(product.price) + addonTotal) * Number(quantity);
+  const addonTotal = selectedAddons.reduce((s, sa) => s + (Number(sa.addon.price) || 0) * (Number(sa.quantity) || 0), 0);
+  
+  const basePrice = product.isCombo && comboSizes.length > 0
+    ? Number(comboSizes[selectedComboSizeIdx]?.price) || 0
+    : Number(product.price) || 0;
+    
+  const itemTotal = (basePrice + addonTotal) * (Number(quantity) || 1);
+
+
 
   const handleAdd = () => {
+    const productToAdd = { ...product };
+    if (product.isCombo && comboSizes.length > 0) {
+       const selectedSize = comboSizes[selectedComboSizeIdx];
+       if (selectedSize) {
+         productToAdd.name = `${product.name} (${selectedSize.name})`;
+         productToAdd.price = selectedSize.price;
+       }
+    }
+    
     for (let i = 0; i < quantity; i++) {
-      addItem(product, selectedAddons, notes);
+      addItem(productToAdd, selectedAddons, notes);
     }
     setAddonQuantities({});
     setNotes("");
@@ -142,62 +199,120 @@ export default function ProductModal({ product, onClose }: Props) {
               )}
 
               <div className="mt-1.5 flex items-baseline gap-2">
-                {product.isPromo && product.originalPrice && product.originalPrice > product.price && (
-                  <span className="text-sm text-muted-foreground line-through">
-                    R$ {Number(product.originalPrice).toFixed(2)}
+                {product.isPromo && product.originalPrice && product.originalPrice !== product.price && !product.isCombo && (
+                  <span className="text-sm text-muted-foreground line-through mr-1">
+                    R$ {Number(Math.max(product.originalPrice, product.price)).toFixed(2)}
                   </span>
                 )}
                 <span className="text-primary font-bold text-lg">
-                  R$ {Number(product.price).toFixed(2)}
+                  {product.isCombo && comboSizes.length > 0 ? (
+                    `A partir de R$ ${Math.min(...comboSizes.map((s: any) => Number(s.price) || 0)).toFixed(2)}`
+                  ) : (
+                    `R$ ${Number(product.isPromo && product.originalPrice ? Math.min(product.originalPrice, product.price) : product.price).toFixed(2)}`
+                  )}
                 </span>
               </div>
 
               {!product.isMadeToOrder ? (
                 <>
+                  {product.isCombo && comboSizes.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="font-semibold text-foreground text-sm mb-2">Selecione o Tamanho</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        {comboSizes.map((size: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedComboSizeIdx(idx)}
+                            className={`p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center text-center ${
+                              selectedComboSizeIdx === idx ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:border-primary/50"
+                            }`}
+                          >
+                            <span className="font-medium text-sm">{isNaN(Number(size.name)) ? size.name : `${size.name}ml`}</span>
+                            <span className="text-[10px]">R$ {Number(size.price).toFixed(2)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {availableAddons.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="font-semibold text-foreground text-sm mb-2">Adicionais</h3>
-                  <div className="space-y-1.5">
-                    {availableAddons.map((addon) => {
-                      const qty = addonQuantities[addon.id] || 0;
-                      return (
-                        <div
-                          key={addon.id}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
-                            qty > 0 ? "border-primary bg-primary/5" : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
-                            <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
-                            <span className="text-xs font-semibold text-accent-foreground bg-accent px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
-                              + R$ {Number(addon.price).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {qty > 0 && (
-                              <button
-                                onClick={() => setAddonQty(addon.id, qty - 1)}
-                                className="bg-muted rounded-full p-1.5 active:bg-muted/70"
-                              >
-                                <Minus size={12} />
-                              </button>
-                            )}
-                            {qty > 0 && (
-                              <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>
-                            )}
-                            <button
-                              onClick={() => setAddonQty(addon.id, qty + 1)}
-                              className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80"
-                            >
-                              <Plus size={12} />
-                            </button>
+                      {product.isCombo && availableAddons.some(a => isAddonFree(a.id)) && (
+                        <div className="mb-4">
+                          <h3 className="font-semibold text-foreground text-sm mb-2">Itens Inclusos</h3>
+                          <p className="text-xs text-muted-foreground mb-2">Os itens abaixo fazem parte do combo (1 unidade grátis).</p>
+                          <div className="space-y-1.5">
+                            {availableAddons.filter(a => isAddonFree(a.id)).map((addon) => {
+                              const qty = addonQuantities[addon.id] || 0;
+                              return (
+                                <div
+                                  key={addon.id}
+                                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
+                                    qty > 0 ? "border-primary bg-primary/5" : "border-border"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                                    <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm ${qty <= 1 ? "bg-green-100 text-green-700" : "bg-accent text-accent-foreground"}`}>
+                                      {qty > 1 ? `+ R$ ${Number(addon.price).toFixed(2)} (Extra)` : "Incluso"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {qty > 0 && (
+                                      <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
+                                        <Minus size={12} />
+                                      </button>
+                                    )}
+                                    {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
+                                    <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                      )}
+
+                      {availableAddons.some(a => !isAddonFree(a.id)) && (
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm mb-2">Adicionais</h3>
+                          <div className="space-y-1.5">
+                            {availableAddons.filter(a => !isAddonFree(a.id)).map((addon) => {
+                              const qty = addonQuantities[addon.id] || 0;
+                              return (
+                                <div
+                                  key={addon.id}
+                                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
+                                    qty > 0 ? "border-primary bg-primary/5" : "border-border"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                                    <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm bg-accent text-accent-foreground">
+                                      + R$ {Number(addon.price).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {qty > 0 && (
+                                      <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
+                                        <Minus size={12} />
+                                      </button>
+                                    )}
+                                    {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
+                                    <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
               <div className="mt-4">
                 <h3 className="font-semibold text-foreground text-sm mb-1.5">Observações</h3>

@@ -10,7 +10,7 @@ interface Props {
 
 export default function PopularSection({ products, onSelect }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const popular = [...products].sort((a, b) => b.orderCount - a.orderCount).slice(0, 6);
+  const popular = [...products].filter(p => p.isPopular);
 
   if (popular.length === 0) return null;
 
@@ -21,7 +21,7 @@ export default function PopularSection({ products, onSelect }: Props) {
   };
 
   return (
-    <div className="mt-3 mb-3">
+    <div className="mt-6 mb-3">
       <div className="flex items-center justify-between px-3 mb-2">
         <h2 className="text-lg font-display text-foreground flex items-center gap-1.5">
           <Star className="text-accent fill-accent" size={18} />
@@ -81,8 +81,8 @@ export default function PopularSection({ products, onSelect }: Props) {
               <h4 className="font-semibold text-xs text-foreground truncate">{p.name}</h4>
               <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{p.description}</p>
               <div className="flex items-center justify-between mt-1.5">
-                <span className="text-primary font-bold text-xs">
-                  R$ {p.price.toFixed(2)}
+                <span className="text-primary font-bold text-xs ml-auto">
+                  R$ {Number(p.price).toFixed(2)}
                 </span>
                 <button
                   onClick={(e) => {

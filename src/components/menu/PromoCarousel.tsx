@@ -22,7 +22,7 @@ export default function PromoCarousel({ products, onSelect }: Props) {
   if (promos.length === 0) return null;
 
   return (
-    <div className="px-3 -mt-5 relative z-10 max-w-3xl mx-auto">
+    <div className="px-3 mt-4 relative z-10 max-w-3xl mx-auto">
       <div className="bg-card rounded-2xl shadow-elevated overflow-hidden border border-border/50">
         <AnimatePresence mode="wait">
           <motion.div
@@ -77,13 +77,13 @@ export default function PromoCarousel({ products, onSelect }: Props) {
               )}
 
               <div className="mt-1 flex items-baseline gap-1.5">
-                {promos[current].originalPrice && promos[current].originalPrice! > promos[current].price && (
-                  <span className="text-[11px] text-muted-foreground line-through">
-                    R$ {promos[current].originalPrice!.toFixed(2)}
+                {promos[current].originalPrice && promos[current].originalPrice !== promos[current].price && (
+                  <span className="text-[11px] text-muted-foreground line-through mr-1">
+                    R$ {Number(Math.max(promos[current].originalPrice, promos[current].price)).toFixed(2)}
                   </span>
                 )}
                 <span className="inline-block text-primary font-bold text-sm">
-                  R$ {promos[current].price.toFixed(2)}
+                  R$ {Number(promos[current].originalPrice ? Math.min(promos[current].originalPrice, promos[current].price) : promos[current].price).toFixed(2)}
                 </span>
               </div>
             </div>
