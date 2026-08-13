@@ -81,8 +81,8 @@ export default function PopularSection({ products, onSelect }: Props) {
               <h4 className="font-semibold text-xs text-foreground truncate">{p.name}</h4>
               <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{p.description}</p>
               <div className="flex items-center justify-between mt-1.5">
-                <span className="text-primary font-bold text-xs ml-auto">
-                  R$ {Number(p.price).toFixed(2)}
+                <span className="text-primary font-bold text-xs">
+                  R$ {Number(p.price).toFixed(2).replace('.', ',')}
                 </span>
                 <button
                   onClick={(e) => {
