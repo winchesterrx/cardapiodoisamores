@@ -39,6 +39,11 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static('uploads'));
 
+// Rota de saúde para manter o servidor acordado (anti-hibernação no Render gratuito)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Helper para salvar imagem base64
 const saveBase64Image = async (base64Str) => {
   if (!base64Str || !base64Str.startsWith('data:image')) return base64Str; // Já é URL ou inválido
