@@ -39,12 +39,28 @@ async function getOrderDetails(orderId) {
     const response = await fetch(`https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    return await response.json();
+    
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`❌ iFood: Erro ${response.status} ao buscar detalhes do pedido ${orderId}: ${errText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // Verifica se retornou um objeto de erro do iFood em vez dos dados do pedido
+    if (!data || !data.id) {
+      console.error(`❌ iFood: Resposta inválida para pedido ${orderId}:`, JSON.stringify(data));
+      return null;
+    }
+    
+    return data;
   } catch (err) {
-    console.error(`Erro ao buscar detalhes do pedido ${orderId}:`, err.message);
+    console.error(`❌ Erro ao buscar detalhes do pedido ${orderId}:`, err.message);
     return null;
   }
 }
+
 
 async function processOrder(orderData) {
   if (!orderData || !orderData.id) return;
