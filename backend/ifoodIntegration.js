@@ -2,9 +2,16 @@ import db from './db.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Use environment variables or fallback to the sandbox ones we used
-const IFOOD_CLIENT_ID = process.env.IFOOD_CLIENT_ID || '4d5da684-e466-4a50-8d12-5904bb5233be';
-const IFOOD_CLIENT_SECRET = process.env.IFOOD_CLIENT_SECRET || 'suzo8x9cr4jrrlm7v26laz2iz2bmq358n586enk4inl0dws9bw0jzjv8o2fbhyxdn4ncrmdosr1sjl4j6h0tl4j3juai5v09zyy';
+// Credenciais de PRODUÇÃO (via variáveis de ambiente - nunca usar fallback em produção!)
+const IFOOD_CLIENT_ID = process.env.IFOOD_CLIENT_ID;
+const IFOOD_CLIENT_SECRET = process.env.IFOOD_CLIENT_SECRET;
+
+if (!IFOOD_CLIENT_ID || !IFOOD_CLIENT_SECRET) {
+  console.error('🔴 ATENÇÃO: IFOOD_CLIENT_ID ou IFOOD_CLIENT_SECRET não estão definidos nas variáveis de ambiente!');
+  console.error('🔴 Os pedidos do iFood NÃO serão recebidos até que essas variáveis sejam configuradas no Render.');
+} else {
+  console.log(`✅ iFood: Usando clientId = ${IFOOD_CLIENT_ID.substring(0, 8)}... (produção)`);
+}
 
 let token = null;
 
@@ -141,7 +148,9 @@ async function processOrder(orderData) {
   }
 }
 
+let _pollCount = 0;
 async function pollEvents() {
+  if (!IFOOD_CLIENT_ID || !IFOOD_CLIENT_SECRET) return; // Bloqueia se sem credenciais
   if (!token) await getToken();
   if (!token) return;
 
@@ -150,75 +159,110 @@ async function pollEvents() {
       headers: { Authorization: `Bearer ${token}` }
     });
     
+    _pollCount++;
+    // Log a cada 30 polls (~60s) para não entupir o log
+    if (_pollCount % 30 === 0) {
+      console.log(`🔄 iFood polling ativo. ${_pollCount} ciclos. Status da última resposta: ${res.status}`);
+    }
+
     if (res.status === 401) {
-      token = null; 
+      console.warn('⚠️ iFood: Token expirado (401). Renovando...');
+      token = null;
+      await getToken();
+      return;
+    }
+
+    if (res.status === 403) {
+      const body = await res.text();
+      console.error(`🔴 iFood: Acesso negado (403). Verifique se as variáveis IFOOD_CLIENT_ID e IFOOD_CLIENT_SECRET estão corretas no Render. Resposta: ${body}`);
+      token = null; // força reautenticação na próxima tentativa
+      return;
+    }
+
+    if (res.status === 204) {
+      // 204 = Sem eventos no momento (normal)
       return;
     }
     
     if (res.status === 200) {
       const text = await res.text();
-      if (!text) return;
-      const events = JSON.parse(text);
-      if (events.length > 0) {
-        console.log(`📥 iFood: Recebidos ${events.length} eventos.`);
-        const ackIds = events.map(event => ({ id: event.id }));
+      if (!text || text.trim() === '' || text.trim() === '[]') return;
+      
+      let events;
+      try {
+        events = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('❌ iFood: Erro ao parsear eventos JSON:', text);
+        return;
+      }
 
-        // SEMPRE DAR ACK IMEDIATAMENTE antes de processar, para não dar timeout no iFood Audit
-        if (ackIds.length > 0) {
-          try {
-            const ackRes = await fetch('https://merchant-api.ifood.com.br/order/v1.0/events/acknowledgment', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(ackIds)
-            });
-            if (!ackRes.ok) {
-               console.error("Erro ao dar ACK nos eventos:", await ackRes.text());
-            } else {
-               console.log(`✅ Eventos ACKed com sucesso:`, ackIds.length);
-            }
-          } catch (ackErr) {
-            console.error("Exceção ao dar ACK nos eventos:", ackErr);
+      if (!Array.isArray(events) || events.length === 0) return;
+
+      console.log(`📥 iFood: Recebidos ${events.length} evento(s): ${events.map(e => e.code).join(', ')}`);
+      const ackIds = events.map(event => ({ id: event.id }));
+
+      // SEMPRE DAR ACK IMEDIATAMENTE antes de processar
+      if (ackIds.length > 0) {
+        try {
+          const ackRes = await fetch('https://merchant-api.ifood.com.br/order/v1.0/events/acknowledgment', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(ackIds)
+          });
+          if (!ackRes.ok) {
+             console.error(`❌ Erro ao dar ACK nos eventos (${ackRes.status}):`, await ackRes.text());
+          } else {
+             console.log(`✅ ACK enviado para ${ackIds.length} evento(s).`);
           }
-        }
-
-        for (const event of events) {
-          try {
-            // Se for um pedido novo (PLC - Placed)
-            if (event.code === 'PLC') {
-              console.log(`🍔 Novo pedido iFood detectado! ID: ${event.orderId}`);
-              const orderData = await getOrderDetails(event.orderId);
-              if (orderData) {
-                await processOrder(orderData);
-                // Removido auto-confirm a pedido do usuário (ele usará o botão no painel)
-              }
-            }
-            
-            // Se o pedido foi cancelado no iFood (CAN)
-            if (event.code === 'CAN') {
-                await db.query('UPDATE orders SET status = \'cancelado\' WHERE id = ?', [event.orderId]);
-                await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [event.orderId, 'cancelado']);
-                console.log(`🚫 Pedido iFood ${event.orderId} cancelado.`);
-            }
-
-            if (event.code === 'CGC') {
-               console.log(`⚠️ Cliente pediu cancelamento iFood ${event.orderId}. Aceitando automaticamente...`);
-               const cancelRes = await fetch(`https://merchant-api.ifood.com.br/order/v1.0/orders/${event.orderId}/acceptCancellation`, {
-                 method: 'POST',
-                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                 body: JSON.stringify({})
-               });
-               if (!cancelRes.ok) {
-                 console.error(`Erro ao aceitar cancelamento do pedido ${event.orderId}:`, await cancelRes.text());
-               }
-            }
-          } catch (eventErr) {
-            console.error(`Erro ao processar o evento iFood ${event.id}:`, eventErr);
-          }
+        } catch (ackErr) {
+          console.error('❌ Exceção ao dar ACK nos eventos:', ackErr);
         }
       }
+
+      for (const event of events) {
+        try {
+          console.log(`📌 Processando evento: code=${event.code}, orderId=${event.orderId}`);
+          
+          // Se for um pedido novo (PLC - Placed)
+          if (event.code === 'PLC') {
+            console.log(`🍔 Novo pedido iFood! ID: ${event.orderId}. Buscando detalhes...`);
+            const orderData = await getOrderDetails(event.orderId);
+            if (orderData) {
+              await processOrder(orderData);
+            } else {
+              console.error(`❌ Não foi possível obter detalhes do pedido ${event.orderId}`);
+            }
+          }
+          
+          // Se o pedido foi cancelado no iFood (CAN)
+          if (event.code === 'CAN') {
+              console.log(`🚫 Pedido ${event.orderId} cancelado pelo iFood.`);
+              await db.query('UPDATE orders SET status = \'cancelado\' WHERE id = ?', [event.orderId]);
+              await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [event.orderId, 'cancelado']);
+          }
+
+          if (event.code === 'CGC') {
+             console.log(`⚠️ Cliente pediu cancelamento do pedido ${event.orderId}. Aceitando...`);
+             const cancelRes = await fetch(`https://merchant-api.ifood.com.br/order/v1.0/orders/${event.orderId}/acceptCancellation`, {
+               method: 'POST',
+               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+               body: JSON.stringify({})
+             });
+             if (!cancelRes.ok) {
+               console.error(`❌ Erro ao aceitar cancelamento ${event.orderId}:`, await cancelRes.text());
+             }
+          }
+        } catch (eventErr) {
+          console.error(`❌ Erro ao processar evento ${event.id} (${event.code}):`, eventErr);
+        }
+      }
+    } else {
+      // Qualquer outro status inesperado
+      const body = await res.text();
+      console.error(`⚠️ iFood polling: status inesperado ${res.status}. Resposta: ${body}`);
     }
   } catch (error) {
-    console.error('Erro no polling do iFood:', error.message);
+    console.error('❌ Erro no polling do iFood:', error.message);
   }
 }
 
