@@ -85,7 +85,9 @@ export default function Admin() {
   // Dashboard & UX State
   const [isCompactView, setIsCompactView] = useState(false);
   const [showDashboardMetrics, setShowDashboardMetrics] = useState(true);
-  const [viewLayout, setViewLayout] = useState<"kanban" | "list">("kanban");
+  const [viewLayout, setViewLayout] = useState<"kanban" | "list">(
+    () => (localStorage.getItem("admin_view_layout") as "kanban" | "list") || "list"
+  );
   const [now, setNow] = useState(Date.now());
   const [prevReceivedCount, setPrevReceivedCount] = useState(0);
 
@@ -686,14 +688,14 @@ export default function Admin() {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex bg-muted p-1 rounded-lg">
                   <button 
-                    onClick={() => setViewLayout("kanban")} 
+                    onClick={() => { setViewLayout("kanban"); localStorage.setItem("admin_view_layout", "kanban"); }} 
                     title="Visão Kanban"
                     className={`p-1.5 rounded-md transition-colors ${viewLayout === "kanban" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <LayoutGrid size={16} />
                   </button>
                   <button 
-                    onClick={() => setViewLayout("list")} 
+                    onClick={() => { setViewLayout("list"); localStorage.setItem("admin_view_layout", "list"); }} 
                     title="Lista Clássica"
                     className={`p-1.5 rounded-md transition-colors ${viewLayout === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
