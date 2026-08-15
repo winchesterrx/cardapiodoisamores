@@ -80,7 +80,7 @@ const saveBase64Image = async (base64Str) => {
 // ── Brands ──
 app.get('/api/brands', async (req, res) => {
   try {
-    const [brands] = await db.query('SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != "" ORDER BY brand ASC');
+    const [brands] = await db.query("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != '' ORDER BY brand ASC");
     res.json(brands.map(b => b.brand));
   } catch (error) {
     console.error(error);
@@ -156,6 +156,10 @@ app.post('/api/addons', async (req, res) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
+    // Limpar possíveis órfãos de deletes anteriores mal sucedidos
+    await connection.query('DELETE FROM addon_categories WHERE addon_id = ?', [id]);
+    await connection.query('DELETE FROM product_addons WHERE addon_id = ?', [id]);
+    
     await connection.query('INSERT INTO addons (id, name, price) VALUES (?, ?, ?)', [id, name, price]);
     if (categoryIds && categoryIds.length > 0) {
       for (const cid of categoryIds) {
@@ -197,12 +201,20 @@ app.put('/api/addons/:id', async (req, res) => {
 });
 
 app.delete('/api/addons/:id', async (req, res) => {
+  const connection = await db.getConnection();
   try {
-    await db.query('DELETE FROM addons WHERE id = ?', [req.params.id]);
+    await connection.beginTransaction();
+    await connection.query('DELETE FROM addon_categories WHERE addon_id = ?', [req.params.id]);
+    await connection.query('DELETE FROM product_addons WHERE addon_id = ?', [req.params.id]);
+    await connection.query('DELETE FROM addons WHERE id = ?', [req.params.id]);
+    await connection.commit();
     res.json({ message: 'Deletado com sucesso' });
   } catch (error) {
+    try { await connection.rollback(); } catch (err) {}
     console.error(error);
     res.status(500).json({ error: 'Erro ao deletar adicional' });
+  } finally {
+    connection.release();
   }
 });
 
@@ -261,6 +273,10 @@ app.get('/api/products', async (req, res) => {
         brand: p.brand,
         addons: addons,
         isPromo: Boolean(p.is_promo),
+        isPopular: Boolean(p.is_popular),
+        isCombo: Boolean(p.is_combo),
+        comboSizes: p.combo_sizes ? (typeof p.combo_sizes === 'string' ? JSON.parse(p.combo_sizes) : p.combo_sizes) : undefined,
+        comboAddons: p.combo_addons ? (typeof p.combo_addons === 'string' ? JSON.parse(p.combo_addons) : p.combo_addons) : undefined,
         originalPrice: p.original_price ? Number(p.original_price) : undefined,
         promoExpiry: p.promo_expiry,
         promoStock: p.promo_stock,
@@ -277,7 +293,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { id, name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
+  const { id, name, description, price, image, images, category, brand, isPromo, isPopular, isCombo, comboSizes, comboAddons, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -289,8 +305,8 @@ app.post('/api/products', async (req, res) => {
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
     await connection.query(
-      'INSERT INTO products (id, name, description, price, image, category_id, brand, is_promo, original_price, promo_expiry, promo_stock, is_made_to_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, description, price, mainImage, category, brand || null, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false]
+      'INSERT INTO products (id, name, description, price, image, category_id, brand, is_promo, is_popular, is_combo, combo_sizes, combo_addons, original_price, promo_expiry, promo_stock, is_made_to_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, description, price, mainImage, category, brand || null, isPromo, isPopular || false, isCombo || false, comboSizes ? JSON.stringify(comboSizes) : null, comboAddons ? JSON.stringify(comboAddons) : null, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false]
     );
     
     if (savedImages && savedImages.length > 0) {
@@ -318,7 +334,7 @@ app.post('/api/products', async (req, res) => {
 });
 
 app.put('/api/products/:id', async (req, res) => {
-  const { name, description, price, image, images, category, brand, isPromo, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
+  const { name, description, price, image, images, category, brand, isPromo, isPopular, isCombo, comboSizes, comboAddons, originalPrice, promoExpiry, promoStock, addons, isMadeToOrder } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -330,8 +346,8 @@ app.put('/api/products/:id', async (req, res) => {
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
     await connection.query(
-      'UPDATE products SET name = ?, description = ?, price = ?, image = ?, category_id = ?, brand = ?, is_promo = ?, original_price = ?, promo_expiry = ?, promo_stock = ?, is_made_to_order = ? WHERE id = ?',
-      [name, description, price, mainImage, category, brand || null, isPromo, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false, req.params.id]
+      'UPDATE products SET name = ?, description = ?, price = ?, image = ?, category_id = ?, brand = ?, is_promo = ?, is_popular = ?, is_combo = ?, combo_sizes = ?, combo_addons = ?, original_price = ?, promo_expiry = ?, promo_stock = ?, is_made_to_order = ? WHERE id = ?',
+      [name, description, price, mainImage, category, brand || null, isPromo, isPopular || false, isCombo || false, comboSizes ? JSON.stringify(comboSizes) : null, comboAddons ? JSON.stringify(comboAddons) : null, originalPrice || null, formattedPromoExpiry, promoStock !== undefined ? promoStock : null, isMadeToOrder || false, req.params.id]
     );
     
     // Deleta as imagens antigas e re-insere

@@ -60,6 +60,10 @@ export interface Product {
   promoStock?: number;
   orderCount: number;
   isMadeToOrder?: boolean;
+  isPopular?: boolean;
+  isCombo?: boolean;
+  comboSizes?: { name: string; price: number }[];
+  comboAddons?: { addonId: string; quantity: number; isFree?: boolean }[];
 }
 
 export interface CartItem {

@@ -43,13 +43,13 @@ export default function ProductCard({ product, onSelect }: Props) {
         <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{product.description}</p>
         <div className="flex items-center justify-between mt-2">
           <div className="flex flex-col">
-            {product.isPromo && product.originalPrice && product.originalPrice > product.price && (
-              <span className="text-[9px] text-muted-foreground line-through leading-none">
-                R$ {product.originalPrice.toFixed(2)}
+            {product.isPromo && product.originalPrice && product.originalPrice !== product.price && (
+              <span className="text-[11px] text-muted-foreground line-through mr-1">
+                R$ {Number(Math.max(product.originalPrice, product.price)).toFixed(2)}
               </span>
             )}
-            <span className="text-primary font-bold text-xs">
-              R$ {product.price.toFixed(2)}
+            <span className="text-sm font-bold bg-accent text-accent-foreground px-2 py-0.5 rounded shadow-sm inline-block">
+              R$ {Number(product.isPromo && product.originalPrice ? Math.min(product.originalPrice, product.price) : product.price).toFixed(2).replace('.', ',')}
             </span>
           </div>
           <button

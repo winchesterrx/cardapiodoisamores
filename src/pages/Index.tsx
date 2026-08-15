@@ -4,6 +4,7 @@ import { getProducts, fetchProducts } from "@/data/menuData";
 import type { Product } from "@/data/menuData";
 import HeroHeader from "@/components/menu/HeroHeader";
 import PromoCarousel from "@/components/menu/PromoCarousel";
+import ComboCarousel from "@/components/menu/ComboCarousel";
 import CategoryNav from "@/components/menu/CategoryNav";
 import PopularSection from "@/components/menu/PopularSection";
 import ProductCard from "@/components/menu/ProductCard";
@@ -15,7 +16,7 @@ import WhatsAppButton from "@/components/menu/WhatsAppButton";
 
 const Index = () => {
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
-  const [activeCategory, setActiveCategory] = useState("todos");
+  const [activeCategory, setActiveCategory] = useState("acai");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -33,6 +34,7 @@ const Index = () => {
       
       <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8">
         <PromoCarousel products={products} onSelect={setSelectedProduct} />
+        <ComboCarousel products={products} onSelect={setSelectedProduct} />
         <PopularSection products={products} onSelect={setSelectedProduct} />
 
         <CategoryNav active={activeCategory} onSelect={setActiveCategory} />
