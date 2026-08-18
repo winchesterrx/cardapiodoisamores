@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getProducts, saveProducts, getCategories, saveCategories,
   getAddons, saveAddons, getOrders, updateOrderStatus,
-  fetchProducts, fetchCategories, fetchAddons, fetchOrders, API,
+  fetchProducts, fetchCategories, fetchAddons, fetchOrders, API, API_URL,
   fetchLoyaltySettings, saveLoyaltySettings, fetchStoreSettings, saveStoreSettings, fetchCoupons, fetchBrands
 } from "@/data/menuData";
 import type { Product, Addon, Category, Order, OrderStatus, LoyaltySettings, StoreSettings } from "@/data/menuData";
@@ -45,7 +45,7 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
 
 const statusFlow: OrderStatus[] = ["recebido", "confirmado", "preparando", "pronto", "despachado", "entregue"];
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// imported API_URL from menuData
 
 export default function Admin() {
   const navigate = useNavigate();

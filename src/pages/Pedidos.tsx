@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Clock, CheckCircle2, ChevronLeft, Package, Truck, XCircle, Search, MapPin, Bike } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/menu/BottomNav";
-import { fetchOrdersByLookup } from "@/data/menuData";
+import { fetchOrdersByLookup, API_URL } from "@/data/menuData";
 import type { Order, OrderStatus } from "@/data/menuData";
 import { toast } from "sonner";
 
@@ -75,7 +75,6 @@ export default function Pedidos() {
         applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
       });
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
       const response = await fetch(`${API_URL}/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

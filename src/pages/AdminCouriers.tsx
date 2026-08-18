@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
+import { API_URL } from '@/data/menuData';
 export default function AdminCouriers() {
   const { token } = useAuth();
   const [showForm, setShowForm] = useState(false);
