@@ -117,6 +117,7 @@ export default function Admin() {
   const [addonName, setAddonName] = useState("");
   const [addonPrice, setAddonPrice] = useState("");
   const [addonCategoryIds, setAddonCategoryIds] = useState<string[]>([]);
+  const [addonType, setAddonType] = useState<"normal" | "creme" | "adicional">("normal");
   const [editingAddon, setEditingAddon] = useState<Addon | null>(null);
 
   // Product form state
@@ -136,6 +137,7 @@ export default function Admin() {
   const [formBrand, setFormBrand] = useState("");
   const [isNewBrand, setIsNewBrand] = useState(false);
   const [formIsCombo, setFormIsCombo] = useState(false);
+  const [formIsBarca, setFormIsBarca] = useState(false);
   const [formComboSizes, setFormComboSizes] = useState<{name: string, price: number}[]>([]);
   const [formComboAddons, setFormComboAddons] = useState<{addonId: string, quantity: number, isFree?: boolean}[]>([]);
 
@@ -200,7 +202,7 @@ export default function Admin() {
     setFormName(""); setFormDesc(""); setFormPrice("");
     setFormCategory(categories[0]?.id || "frango");
     setFormImages([]); setFormIsPromo(false); setFormOriginalPrice(""); setFormPromoExpiry(""); setFormPromoStock(""); setFormAddons([]);
-    setFormIsCombo(false); setFormComboSizes([]); setFormComboAddons([]);
+    setFormIsCombo(false); setFormIsBarca(false); setFormComboSizes([]); setFormComboAddons([]);
     setFormKitItems([]);
     setFormIsMadeToOrder(false); setFormBrand(""); setIsNewBrand(false);
     setFormIsPopular(false);
@@ -213,6 +215,7 @@ export default function Admin() {
     setFormCategory(product.category);
     setFormImages(product.images?.length ? product.images : (product.image ? [product.image] : []));
     setFormIsPromo(product.isPromo || false);
+    setFormIsBarca(product.isBarca || false);
     setFormIsCombo(product.isCombo || false);
     setFormComboSizes(product.comboSizes || []);
     setFormComboAddons(product.comboAddons || []);
@@ -236,6 +239,7 @@ export default function Admin() {
       images: formImages,
       category: formCategory, addons: selectedAddons,
       isPromo: formIsPromo,
+      isBarca: formIsBarca,
       isCombo: formIsCombo,
       comboSizes: formIsCombo ? formComboSizes : undefined,
       comboAddons: formIsCombo ? formComboAddons : undefined,
@@ -307,13 +311,13 @@ export default function Admin() {
   };
 
   // ── Addon CRUD ──
-  const resetAddonForm = () => { setAddonName(""); setAddonPrice(""); setAddonCategoryIds([]); setEditingAddon(null); setShowAddonForm(false); };
-  const openEditAddon = (addon: Addon) => { setEditingAddon(addon); setAddonName(addon.name); setAddonPrice(addon.price.toString()); setAddonCategoryIds(addon.categoryIds); setShowAddonForm(true); };
+  const resetAddonForm = () => { setAddonName(""); setAddonPrice(""); setAddonCategoryIds([]); setAddonType("normal"); setEditingAddon(null); setShowAddonForm(false); };
+  const openEditAddon = (addon: Addon) => { setEditingAddon(addon); setAddonName(addon.name); setAddonPrice(addon.price.toString()); setAddonCategoryIds(addon.categoryIds); setAddonType(addon.type || "normal"); setShowAddonForm(true); };
 
   const handleSaveAddon = async () => {
     if (!addonName.trim() || !addonPrice) return;
     const id = editingAddon?.id || addonName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const newAddon: Addon = { id, name: addonName.trim(), price: parseFloat(addonPrice) || 0, categoryIds: addonCategoryIds };
+    const newAddon: Addon = { id, name: addonName.trim(), price: parseFloat(addonPrice) || 0, categoryIds: addonCategoryIds, type: addonType };
     if (editingAddon) {
       await API.put(`/addons/${editingAddon.id}`, newAddon);
     } else {
@@ -1056,6 +1060,10 @@ export default function Admin() {
                 </div>
                 
                 <div className="flex flex-col gap-2 mt-4 border-t border-border pt-4">
+                  <label className="flex items-center gap-2 text-sm text-foreground font-bold">
+                    <input type="checkbox" checked={formIsBarca} onChange={(e) => setFormIsBarca(e.target.checked)} className="accent-primary" />
+                    É uma Barca? (1 creme e 5 adicionais gratuitos)
+                  </label>
                   <label className="flex items-center gap-2 text-sm text-foreground">
                     <input type="checkbox" checked={formIsPopular} onChange={(e) => setFormIsPopular(e.target.checked)} className="accent-primary" />
                     Destacar em "Mais Pedidos"
@@ -1188,6 +1196,15 @@ export default function Admin() {
                   className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                 <input value={addonPrice} onChange={(e) => setAddonPrice(e.target.value)} placeholder="Preço (ex: 4.00)" type="number" step="0.01"
                   className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Tipo de Adicional</label>
+                  <select value={addonType} onChange={(e) => setAddonType(e.target.value as any)}
+                    className="w-full border border-border rounded-lg p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="normal">Normal</option>
+                    <option value="creme">Creme (Barca)</option>
+                    <option value="adicional">Adicional (Barca)</option>
+                  </select>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Seções onde este adicional estará disponível</label>
                   <div className="flex flex-wrap gap-2">

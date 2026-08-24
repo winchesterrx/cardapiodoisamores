@@ -82,7 +82,7 @@ export default function AdminReports() {
   const { data: orders = [] } = useQuery({ queryKey: ["orders"], queryFn: fetchOrders });
   const { data: coupons = [] } = useQuery({ queryKey: ["coupons"], queryFn: fetchCoupons });
 
-  const [datePreset, setDatePreset] = useState("30d");
+  const [datePreset, setDatePreset] = useState("this_month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
@@ -353,6 +353,11 @@ export default function AdminReports() {
             </button>
           ))}
         </div>
+        {datePreset !== "custom" && (
+          <div className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+            {dateRange.start.toLocaleDateString("pt-BR")} até {dateRange.end.toLocaleDateString("pt-BR")}
+          </div>
+        )}
         {datePreset === "custom" && (
           <div className="flex items-center gap-2 animate-in fade-in zoom-in-95">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}

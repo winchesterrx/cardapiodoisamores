@@ -101,10 +101,10 @@ export default function AdminExpenses() {
   const now = new Date();
   const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const firstDay = toLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1));
-  const lastDay = toLocalYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const today = toLocalYMD(now);
   
   const [filterStart, setFilterStart] = useState(firstDay);
-  const [filterEnd, setFilterEnd] = useState(lastDay);
+  const [filterEnd, setFilterEnd] = useState(today);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc">("date_desc");

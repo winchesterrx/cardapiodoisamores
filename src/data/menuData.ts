@@ -35,6 +35,7 @@ export interface Addon {
   name: string;
   price: number;
   categoryIds: string[];
+  type?: 'creme' | 'adicional' | 'comum';
 }
 
 export interface SelectedAddon {
@@ -62,6 +63,7 @@ export interface Product {
   isMadeToOrder?: boolean;
   isPopular?: boolean;
   isCombo?: boolean;
+  isBarca?: boolean;
   comboSizes?: { name: string; price: number }[];
   comboAddons?: { addonId: string; quantity: number; isFree?: boolean }[];
 }
