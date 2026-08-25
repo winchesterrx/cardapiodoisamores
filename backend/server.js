@@ -53,33 +53,28 @@ const saveBase64Image = async (base64Str) => {
   if (IMGBB_API_KEY) {
     try {
       const base64Data = base64Str.split(',')[1];
+      const formData = new URLSearchParams();
+      formData.append('image', base64Data);
+
       const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ image: base64Data })
+        body: formData.toString()
       });
       const result = await response.json();
       if (result.success) {
         return result.data.url;
       }
       console.error('ImgBB Upload Error:', result);
+      throw new Error(`Falha na API ImgBB: ${result.error?.message || 'Erro desconhecido'}`);
     } catch (err) {
       console.error('Falha no upload para o ImgBB:', err);
+      throw new Error('Falha no upload da imagem para o ImgBB. Verifique as credenciais e tente novamente.');
     }
+  } else {
+    console.error('Chave IMGBB_API_KEY não configurada no ambiente!');
+    throw new Error('Servidor não está configurado para upload de imagens (ImgBB ausente).');
   }
-
-  // Fallback para upload local (se não tiver chave do ImgBB)
-  const matches = base64Str.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
-  if (!matches || matches.length !== 3) return base64Str;
-  
-  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-  const data = Buffer.from(matches[2], 'base64');
-  const filename = `img_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
-  
-  if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-  fs.writeFileSync(path.join('uploads', filename), data);
-  
-  return `/uploads/${filename}`;
 };
 
 // ── Brands ──
