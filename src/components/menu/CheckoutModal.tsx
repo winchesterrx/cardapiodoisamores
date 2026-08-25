@@ -232,27 +232,6 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     return () => clearTimeout(delayDebounceFn);
   }, [street, number, neighborhood, consume, storeSettings]);
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (consume === "entrega" && street.trim().length > 3 && showSuggestions) {
-        setIsSearchingAddress(true);
-        try {
-          const queryStr = encodeURIComponent(`${street}, Votuporanga, SP`);
-          const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${queryStr}&format=json&addressdetails=1&limit=5&countrycodes=br`);
-          const data = await response.json();
-          setAddressSuggestions(data);
-        } catch (error) {
-          console.error("Erro ao buscar endereço:", error);
-        } finally {
-          setIsSearchingAddress(false);
-        }
-      } else {
-        setAddressSuggestions([]);
-      }
-    }, 800);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [street, showSuggestions, consume]);
 
   let discountValue = 0;
   let pointsToUse = 0;
