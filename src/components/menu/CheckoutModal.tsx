@@ -19,9 +19,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [step, setStep] = useState<"cart" | "checkout">("cart");
   const [consume, setConsume] = useState<ConsumeOption>("entrega");
   const [payment, setPayment] = useState<PaymentOption>("pix");
+  const [cep, setCep] = useState(() => localStorage.getItem("customer_cep") || "");
   const [street, setStreet] = useState(() => localStorage.getItem("customer_street") || "");
   const [number, setNumber] = useState(() => localStorage.getItem("customer_number") || "");
   const [neighborhood, setNeighborhood] = useState(() => localStorage.getItem("customer_neighborhood") || "");
+  const [city, setCity] = useState(() => localStorage.getItem("customer_city") || "");
+  const [uf, setUf] = useState(() => localStorage.getItem("customer_uf") || "");
   const [reference, setReference] = useState(() => localStorage.getItem("customer_reference") || "");
   const [mesa, setMesa] = useState("");
   const [customerName, setCustomerName] = useState(() => localStorage.getItem("customer_name") || "");
@@ -48,10 +51,8 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [deliveryDistance, setDeliveryDistance] = useState<string | null>(null);
   const [deliveryFeeError, setDeliveryFeeError] = useState("");
 
-  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
+  const [cepError, setCepError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
@@ -153,8 +154,42 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCouponError("");
   };
 
-  const addressForCalculation = `${street}, ${number}, ${neighborhood}`;
-  const fullAddress = `${street}, ${number} - ${neighborhood}${reference ? ` (Ref: ${reference})` : ''}`;
+  const formatCep = (value: string) => {
+    return value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
+  };
+
+  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawCep = e.target.value;
+    const formatted = formatCep(rawCep);
+    setCep(formatted);
+    setCepError("");
+
+    if (formatted.replace(/\D/g, '').length === 8) {
+      setIsFetchingCep(true);
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${formatted.replace(/\D/g, '')}/json/`);
+        const data = await response.json();
+        if (data.erro) {
+          setCepError("CEP não encontrado");
+        } else {
+          setStreet(data.logradouro || "");
+          setNeighborhood(data.bairro || "");
+          setCity(data.localidade || "");
+          setUf(data.uf || "");
+          if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+             setCalculatedDeliveryFee(null); setDeliveryDistance(null);
+          }
+        }
+      } catch (err) {
+        setCepError("Erro ao buscar CEP");
+      } finally {
+        setIsFetchingCep(false);
+      }
+    }
+  };
+
+  const addressForCalculation = `${street}, ${number}, ${neighborhood}, ${city}, ${uf}`;
+  const fullAddress = `${street}, ${number} - ${neighborhood}, ${city} - ${uf}${reference ? ` (Ref: ${reference})` : ''}`;
 
   const handleCalculateDelivery = async (addressToCalculate: string = addressForCalculation) => {
     if (!addressToCalculate.trim()) {
@@ -400,10 +435,13 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       localStorage.setItem("digitalmenu_customer_cpf", customerWhatsApp.replace(/\D/g, ""));
     }
 
-    localStorage.setItem("customer_street", street);
-    localStorage.setItem("customer_number", number);
-    localStorage.setItem("customer_neighborhood", neighborhood);
-    localStorage.setItem("customer_reference", reference);
+      localStorage.setItem("customer_cep", cep);
+      localStorage.setItem("customer_street", street);
+      localStorage.setItem("customer_number", number);
+      localStorage.setItem("customer_neighborhood", neighborhood);
+      localStorage.setItem("customer_city", city);
+      localStorage.setItem("customer_uf", uf);
+      localStorage.setItem("customer_reference", reference);
     localStorage.setItem("customer_name", customerName);
     localStorage.setItem("customer_whatsapp", customerWhatsApp);
     localStorage.setItem("customer_cpf", customerCPF);
@@ -642,47 +680,21 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
 
               {consume === "entrega" && (
                 <div className="space-y-3">
-                  <div className="relative">
-                    <label className="text-sm font-medium text-foreground">Rua *</label>
-                    <input value={street} onChange={(e) => {
-                      setStreet(e.target.value);
-                      setShowSuggestions(true);
-                      if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
-                        setCalculatedDeliveryFee(null); setDeliveryDistance(null);
-                      }
-                    }} placeholder="Ex: Av. Brasil"
-                      className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
-                    
-                    {showSuggestions && (addressSuggestions.length > 0 || isSearchingAddress) && (
-                      <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                        {isSearchingAddress ? (
-                          <div className="p-3 text-sm text-muted-foreground text-center">Buscando...</div>
-                        ) : (
-                          addressSuggestions.map((sug, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                const road = sug.address?.road || sug.address?.pedestrian || sug.name;
-                                const suburb = sug.address?.suburb || sug.address?.neighbourhood || sug.address?.city_district || "";
-                                setStreet(road || street);
-                                if (suburb) setNeighborhood(suburb);
-                                setShowSuggestions(false);
-                                setAddressSuggestions([]);
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-muted border-b border-border last:border-0"
-                            >
-                              <div className="font-medium text-foreground">{sug.address?.road || sug.address?.pedestrian || sug.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {[sug.address?.suburb || sug.address?.neighbourhood, sug.address?.city_district, sug.address?.city || sug.address?.town].filter(Boolean).join(", ")}
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
+                  <div className="grid grid-cols-[120px_1fr] gap-3">
+                    <div className="relative">
+                      <label className="text-sm font-medium text-foreground">CEP *</label>
+                      <input value={cep} onChange={handleCepChange} placeholder="00000-000"
+                        className={`w-full border ${cepError ? 'border-destructive' : 'border-border'} rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring`} />
+                      {cepError && <span className="text-xs text-destructive absolute -bottom-4 left-0">{cepError}</span>}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Rua *</label>
+                      <input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Ex: Av. Brasil"
+                        disabled={isFetchingCep}
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50" />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 mt-2">
                     <div>
                       <label className="text-sm font-medium text-foreground">Número *</label>
                       <input value={number} onChange={(e) => {
@@ -695,13 +707,23 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-foreground">Bairro *</label>
-                      <input value={neighborhood} onChange={(e) => {
-                        setNeighborhood(e.target.value);
-                        if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
-                          setCalculatedDeliveryFee(null); setDeliveryDistance(null);
-                        }
-                      }} placeholder="Ex: Centro"
-                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring" />
+                      <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="Ex: Centro"
+                        disabled={isFetchingCep}
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-[2fr_1fr] gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Cidade *</label>
+                      <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex: São Paulo"
+                        disabled={isFetchingCep}
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">UF *</label>
+                      <input value={uf} onChange={(e) => setUf(e.target.value)} placeholder="Ex: SP" maxLength={2}
+                        disabled={isFetchingCep}
+                        className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50" />
                     </div>
                   </div>
                   <div className="flex gap-2 items-end">
