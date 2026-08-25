@@ -158,42 +158,52 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     return value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
   };
 
-  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawCep = e.target.value;
     const formatted = formatCep(rawCep);
     setCep(formatted);
     setCepError("");
-
-    if (formatted.replace(/\D/g, '').length === 8) {
-      setIsFetchingCep(true);
-      try {
-        const response = await fetch(`https://viacep.com.br/ws/${formatted.replace(/\D/g, '')}/json/`);
-        const data = await response.json();
-        if (data.erro) {
-          setCepError("CEP não encontrado");
-        } else {
-          setStreet(data.logradouro || "");
-          setNeighborhood(data.bairro || "");
-          setCity(data.localidade || "");
-          setUf(data.uf || "");
-          if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
-             setCalculatedDeliveryFee(null); setDeliveryDistance(null);
-          }
-        }
-      } catch (err) {
-        setCepError("Erro ao buscar CEP");
-      } finally {
-        setIsFetchingCep(false);
-      }
-    }
   };
+
+  useEffect(() => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length === 8 && !street) {
+      const fetchAddress = async () => {
+        setIsFetchingCep(true);
+        try {
+          const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+          const data = await response.json();
+          if (data.erro) {
+            setCepError("CEP não encontrado");
+          } else {
+            setStreet(data.logradouro || "");
+            setNeighborhood(data.bairro || "");
+            setCity(data.localidade || "");
+            setUf(data.uf || "");
+            if (storeSettings && Number(storeSettings.delivery_fee_per_km) > 0) {
+               setCalculatedDeliveryFee(null); setDeliveryDistance(null);
+            }
+          }
+        } catch (err) {
+          setCepError("Erro ao buscar CEP");
+        } finally {
+          setIsFetchingCep(false);
+        }
+      };
+      fetchAddress();
+    }
+  }, [cep, street, storeSettings]);
 
   const addressForCalculation = `${street}, ${number}, ${neighborhood}, ${city}, ${uf}`;
   const fullAddress = `${street}, ${number} - ${neighborhood}, ${city} - ${uf}${reference ? ` (Ref: ${reference})` : ''}`;
 
   const handleCalculateDelivery = async (addressToCalculate: string = addressForCalculation) => {
-    if (!addressToCalculate.trim()) {
-      setDeliveryFeeError("Informe o endereço para calcular o frete.");
+    if (!street.trim() || !neighborhood.trim() || !city.trim()) {
+      setDeliveryFeeError("Preencha o CEP corretamente para buscar o endereço.");
+      return;
+    }
+    if (!number.trim()) {
+      setDeliveryFeeError("Informe o número do endereço.");
       return;
     }
     setCalculatingFee(true);
