@@ -122,10 +122,15 @@ export default function ProductModal({ product, onClose }: Props) {
       });
   }
 
+  let selectedCremesCount = 0;
   let selectedAdicionaisCount = 0;
   if (product?.isBarca) {
-    availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').forEach(a => {
-      selectedAdicionaisCount += (addonQuantities[a.id] || 0);
+    availableAddons.forEach(a => {
+      if (a.type === 'creme') {
+        selectedCremesCount += (addonQuantities[a.id] || 0);
+      } else if (a.type === 'adicional' || a.type === 'normal' || a.type === 'comum') {
+        selectedAdicionaisCount += (addonQuantities[a.id] || 0);
+      }
     });
   }
 
@@ -393,6 +398,45 @@ export default function ProductModal({ product, onClose }: Props) {
                                             <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
                                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm ${isPaid ? "bg-accent text-accent-foreground" : "bg-green-100 text-green-700"}`}>
                                               {isPaid ? `+ R$ ${Number(addon.price).toFixed(2)} ${qty === 0 ? "(Extra)" : ""}` : "Incluso"}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {qty > 0 && (
+                                              <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
+                                                <Minus size={12} />
+                                              </button>
+                                            )}
+                                            {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
+                                            <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
+                                              <Plus size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Cremes Extras Section */}
+                              {availableAddons.filter(a => a.type === 'creme').length > 0 && (
+                                <div className="mb-4 mt-2">
+                                  <h4 className="font-medium text-foreground text-xs mb-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg inline-block">Cremes Extras</h4>
+                                  <div className="space-y-1.5 mt-2">
+                                    {availableAddons.filter(a => a.type === 'creme').map((addon) => {
+                                      const qty = addonQuantities[addon.id] || 0;
+                                      const isPaidCreme = (qty > 0 && selectedCremesCount > 1) || (selectedCremesCount >= 1 && qty === 0);
+                                      return (
+                                        <div
+                                          key={addon.id}
+                                          className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
+                                            qty > 0 ? "border-primary bg-primary/5" : "border-border"
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                                            <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm ${isPaidCreme ? "bg-accent text-accent-foreground" : "bg-green-100 text-green-700"}`}>
+                                              {isPaidCreme ? `+ R$ ${Number(addon.price).toFixed(2)} ${qty === 0 ? "(Extra)" : ""}` : "Incluso"}
                                             </span>
                                           </div>
                                           <div className="flex items-center gap-2">
