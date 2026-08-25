@@ -17,6 +17,7 @@ export default function ProductModal({ product, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [selectedComboSizeIdx, setSelectedComboSizeIdx] = useState<number>(0);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   const safeParse = (data: any) => {
     if (Array.isArray(data)) return data;
@@ -58,6 +59,17 @@ export default function ProductModal({ product, onClose }: Props) {
     });
   };
 
+  const setCremeQty = (addonId: string) => {
+    setAddonQuantities((prev) => {
+      const newQuantities = { ...prev };
+      availableAddons.filter(a => a.type === 'creme').forEach(c => {
+        delete newQuantities[c.id];
+      });
+      return { ...newQuantities, [addonId]: 1 };
+    });
+  };
+
+
   const isAddonFree = (addonId: string) => {
     if (!product?.isCombo || !comboAddons) return false;
     const ca = comboAddons.find((a: any) => a.addonId === addonId);
@@ -77,7 +89,7 @@ export default function ProductModal({ product, onClose }: Props) {
         if (a.type === 'creme' && freeCremesLeft > 0) {
           freeQty = Math.min(qty, freeCremesLeft);
           freeCremesLeft -= freeQty;
-        } else if (a.type === 'adicional' && freeAdicionaisLeft > 0) {
+        } else if ((a.type === 'adicional' || a.type === 'normal' || a.type === 'comum') && freeAdicionaisLeft > 0) {
           freeQty = Math.min(qty, freeAdicionaisLeft);
           freeAdicionaisLeft -= freeQty;
         }
@@ -108,6 +120,13 @@ export default function ProductModal({ product, onClose }: Props) {
           selectedAddons.push({ addon: a, quantity: qty });
         }
       });
+  }
+
+  let selectedAdicionaisCount = 0;
+  if (product?.isBarca) {
+    availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').forEach(a => {
+      selectedAdicionaisCount += (addonQuantities[a.id] || 0);
+    });
   }
 
   const addonTotal = selectedAddons.reduce((s, sa) => s + (Number(sa.addon.price) || 0) * (Number(sa.quantity) || 0), 0);
@@ -310,82 +329,90 @@ export default function ProductModal({ product, onClose }: Props) {
                       {product.isBarca && availableAddons.length > 0 && (
                         <div className="mb-4">
                           <h3 className="font-semibold text-foreground text-sm mb-2">Monte sua Barca</h3>
-                          <p className="text-xs text-muted-foreground mb-4">Você tem direito a <strong>1 Creme</strong> e <strong>5 Adicionais</strong> gratuitos!</p>
                           
-                          {/* Cremes Section */}
-                          {availableAddons.filter(a => a.type === 'creme').length > 0 && (
-                            <div className="mb-4">
-                              <h4 className="font-medium text-foreground text-xs mb-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg inline-block">Cremes (1 Grátis)</h4>
-                              <div className="space-y-1.5 mt-2">
-                                {availableAddons.filter(a => a.type === 'creme').map((addon) => {
-                                  const qty = addonQuantities[addon.id] || 0;
-                                  return (
-                                    <div
-                                      key={addon.id}
-                                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
-                                        qty > 0 ? "border-primary bg-primary/5" : "border-border"
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
-                                        <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm bg-accent text-accent-foreground">
-                                          + R$ {Number(addon.price).toFixed(2)}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {qty > 0 && (
-                                          <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
-                                            <Minus size={12} />
-                                          </button>
-                                        )}
-                                        {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
-                                        <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
-                                          <Plus size={12} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                          {currentStep === 1 && (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-4"><strong>Passo 1:</strong> Escolha 1 Creme (Obrigatório e Gratuito).</p>
+                              {/* Cremes Section */}
+                              {availableAddons.filter(a => a.type === 'creme').length > 0 && (
+                                <div className="mb-4">
+                                  <div className="space-y-1.5 mt-2">
+                                    {availableAddons.filter(a => a.type === 'creme').map((addon) => {
+                                      const qty = addonQuantities[addon.id] || 0;
+                                      return (
+                                        <div
+                                          key={addon.id}
+                                          onClick={() => setCremeQty(addon.id)}
+                                          className={`cursor-pointer w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
+                                            qty > 0 ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                                            <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm bg-green-100 text-green-700">
+                                              Incluso
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-primary/20 bg-background mr-2">
+                                            {qty > 0 && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
 
-                          {/* Adicionais Section */}
-                          {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').length > 0 && (
-                            <div className="mb-4">
-                              <h4 className="font-medium text-foreground text-xs mb-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg inline-block">Adicionais (5 Grátis)</h4>
-                              <div className="space-y-1.5 mt-2">
-                                {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').map((addon) => {
-                                  const qty = addonQuantities[addon.id] || 0;
-                                  return (
-                                    <div
-                                      key={addon.id}
-                                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
-                                        qty > 0 ? "border-primary bg-primary/5" : "border-border"
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
-                                        <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm bg-accent text-accent-foreground">
-                                          + R$ {Number(addon.price).toFixed(2)}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {qty > 0 && (
-                                          <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
-                                            <Minus size={12} />
-                                          </button>
-                                        )}
-                                        {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
-                                        <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
-                                          <Plus size={12} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                          {currentStep === 2 && (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-4"><strong>Passo 2:</strong> Escolha seus 5 Adicionais gratuitos!</p>
+                              
+                              {selectedAdicionaisCount >= 5 && (
+                                <div className="bg-amber-100 border border-amber-200 rounded-xl p-3 mb-4">
+                                  <p className="text-amber-800 text-xs text-center font-medium">Você já escolheu seus 5 adicionais gratuitos. Qualquer adicional extra será cobrado o valor integral.</p>
+                                </div>
+                              )}
+
+                              {/* Adicionais Section */}
+                              {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').length > 0 && (
+                                <div className="mb-4">
+                                  <div className="space-y-1.5 mt-2">
+                                    {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').map((addon) => {
+                                      const qty = addonQuantities[addon.id] || 0;
+                                      const isPaid = (qty > 0 && selectedAdicionaisCount > 5) || (selectedAdicionaisCount >= 5 && qty === 0);
+                                      return (
+                                        <div
+                                          key={addon.id}
+                                          className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${
+                                            qty > 0 ? "border-primary bg-primary/5" : "border-border"
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between flex-1 mr-4 gap-2 min-w-0">
+                                            <span className="text-sm font-medium text-foreground truncate">{addon.name}</span>
+                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm ${isPaid ? "bg-accent text-accent-foreground" : "bg-green-100 text-green-700"}`}>
+                                              {isPaid ? `+ R$ ${Number(addon.price).toFixed(2)} ${qty === 0 ? "(Extra)" : ""}` : "Incluso"}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {qty > 0 && (
+                                              <button onClick={() => setAddonQty(addon.id, qty - 1)} className="bg-muted rounded-full p-1.5 active:bg-muted/70">
+                                                <Minus size={12} />
+                                              </button>
+                                            )}
+                                            {qty > 0 && <span className="text-sm font-bold w-5 text-center text-foreground">{qty}</span>}
+                                            <button onClick={() => setAddonQty(addon.id, qty + 1)} className="bg-primary text-primary-foreground rounded-full p-1.5 active:opacity-80">
+                                              <Plus size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -429,15 +456,17 @@ export default function ProductModal({ product, onClose }: Props) {
                     </div>
                   )}
 
-              <div className="mt-4">
-                <h3 className="font-semibold text-foreground text-sm mb-1.5">Observações</h3>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: Tirar cebola, ponto da carne..."
-                  className="w-full border border-border rounded-xl p-3 text-xs bg-background text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
+              {(!product.isBarca || (product.isBarca && currentStep === 2)) && (
+                <div className="mt-4">
+                  <h3 className="font-semibold text-foreground text-sm mb-1.5">Observações</h3>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ex: Tirar cebola, ponto da carne..."
+                    className="w-full border border-border rounded-xl p-3 text-xs bg-background text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              )}
                 </>
               ) : (
                 <div className="mt-6 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
@@ -450,27 +479,49 @@ export default function ProductModal({ product, onClose }: Props) {
 
           {!product.isMadeToOrder ? (
             <div className="border-t border-border bg-card px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] shrink-0 sm:rounded-b-3xl">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="bg-muted rounded-full p-2.5 active:bg-muted/70 transition-colors"
-              >
-                <Minus size={16} />
-              </button>
-              <span className="font-bold text-lg text-foreground w-7 text-center">{quantity}</span>
-              <button
-                onClick={() => setQuantity((q) => q + 1)}
-                className="bg-muted rounded-full p-2.5 active:bg-muted/70 transition-colors"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-            <button
-              onClick={handleAdd}
-              className="w-full bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform"
-            >
-              Adicionar R$ {itemTotal.toFixed(2)}
-            </button>
+              {product.isBarca && currentStep === 1 ? (
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  disabled={!availableAddons.some(a => a.type === 'creme' && addonQuantities[a.id] > 0)}
+                  className="w-full bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  Avançar para Adicionais
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  {product.isBarca && currentStep === 2 && (
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      className="bg-muted text-foreground font-semibold px-4 py-3 rounded-xl text-sm active:scale-95 transition-transform"
+                    >
+                      Voltar
+                    </button>
+                  )}
+                  <div className="flex-1 flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-center gap-2 bg-muted rounded-xl p-1 shrink-0">
+                      <button
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="rounded-lg p-2 active:bg-background transition-colors"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="font-bold text-base text-foreground w-6 text-center">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity((q) => q + 1)}
+                        className="rounded-lg p-2 active:bg-background transition-colors"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleAdd}
+                      className="flex-1 bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform whitespace-nowrap overflow-hidden text-ellipsis"
+                    >
+                      Adicionar R$ {itemTotal.toFixed(2)}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="border-t border-border bg-card px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] shrink-0 sm:rounded-b-3xl">
