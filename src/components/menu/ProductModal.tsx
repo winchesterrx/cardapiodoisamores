@@ -351,11 +351,11 @@ export default function ProductModal({ product, onClose }: Props) {
                           )}
 
                           {/* Adicionais Section */}
-                          {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal').length > 0 && (
+                          {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').length > 0 && (
                             <div className="mb-4">
                               <h4 className="font-medium text-foreground text-xs mb-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg inline-block">Adicionais (5 Grátis)</h4>
                               <div className="space-y-1.5 mt-2">
-                                {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal').map((addon) => {
+                                {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').map((addon) => {
                                   const qty = addonQuantities[addon.id] || 0;
                                   return (
                                     <div

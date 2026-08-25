@@ -245,11 +245,11 @@ app.get('/api/products', async (req, res) => {
     const formattedProducts = products.map(p => {
       const specificAddons = productAddonsRows
         .filter(pa => pa.product_id === p.id)
-        .map(a => ({ id: a.id, name: a.name, price: Number(a.price) }));
+        .map(a => ({ id: a.id, name: a.name, price: Number(a.price), type: a.type }));
         
       const catAddons = categoryAddonsRows
         .filter(ca => ca.category_id === p.category_id)
-        .map(a => ({ id: a.id, name: a.name, price: Number(a.price) }));
+        .map(a => ({ id: a.id, name: a.name, price: Number(a.price), type: a.type }));
 
       const allAddonsMap = new Map();
       specificAddons.forEach(a => allAddonsMap.set(a.id, a));
