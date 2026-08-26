@@ -492,10 +492,37 @@ app.post('/api/calculate-delivery', async (req, res) => {
     }
 
     // 1. Geocoding Cliente
-    const geocodeClientRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(customerAddress)}&format=json&limit=1`, {
-      headers: { 'User-Agent': 'CardapioDigital/1.0' }
-    });
-    const geocodeClient = await geocodeClientRes.json();
+    let geocodeClient = null;
+    let fallbackQueries = [customerAddress];
+    
+    // Attempt to create fallbacks if address has commas (e.g. "Rua, Numero, Bairro, Cidade, UF")
+    const parts = customerAddress.split(',').map(p => p.trim());
+    if (parts.length >= 5) {
+      const [street, number, neighborhood, city, uf] = parts;
+      fallbackQueries.push(`${street}, ${city}, ${uf}, Brasil`); // Fallback 1: No number/neighborhood
+      fallbackQueries.push(`${city}, ${uf}, Brasil`); // Fallback 2: Just City and State
+    } else if (parts.length >= 2) {
+      // In case it's just City, UF or something
+      const city = parts[parts.length - 2];
+      const uf = parts[parts.length - 1];
+      fallbackQueries.push(`${city}, ${uf}, Brasil`);
+    }
+
+    for (let query of fallbackQueries) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+          headers: { 'User-Agent': 'CardapioDigital/1.0' }
+        });
+        const data = await res.json();
+        if (data && data.length > 0) {
+          geocodeClient = data;
+          break; // Found it!
+        }
+      } catch (err) {
+        console.error("Geocode falhou para query:", query, err);
+      }
+    }
+
     if (!geocodeClient || geocodeClient.length === 0) {
       return res.status(400).json({ error: 'Endereço do cliente não encontrado' });
     }
