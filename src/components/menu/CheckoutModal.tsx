@@ -209,10 +209,11 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     setCalculatingFee(true);
     setDeliveryFeeError("");
     try {
+      const cleanCep = cep.replace(/\D/g, '');
       const response = await fetch(`${API_URL}/calculate-delivery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerAddress: addressToCalculate })
+        body: JSON.stringify({ customerAddress: addressToCalculate, cep: cleanCep })
       });
       const data = await response.json();
       if (!response.ok) {

@@ -481,8 +481,8 @@ app.put('/api/store/settings', async (req, res) => {
 });
 
 app.post('/api/calculate-delivery', async (req, res) => {
-  const { customerAddress } = req.body;
-  if (!customerAddress) return res.status(400).json({ error: 'Endereço do cliente não fornecido' });
+  const { customerAddress, cep } = req.body;
+  if (!customerAddress && !cep) return res.status(400).json({ error: 'Endereço ou CEP do cliente não fornecido' });
 
   try {
     const [rows] = await db.query('SELECT store_address, delivery_fee_per_km, delivery_fee_minimum FROM store_settings WHERE id = 1');
@@ -492,42 +492,65 @@ app.post('/api/calculate-delivery', async (req, res) => {
     }
 
     // 1. Geocoding Cliente
+    let clientLat = null;
+    let clientLon = null;
     let geocodeClient = null;
-    let fallbackQueries = [customerAddress];
-    
-    // Attempt to create fallbacks if address has commas (e.g. "Rua, Numero, Bairro, Cidade, UF")
-    const parts = customerAddress.split(',').map(p => p.trim());
-    if (parts.length >= 5) {
-      const [street, number, neighborhood, city, uf] = parts;
-      fallbackQueries.push(`${street}, ${city}, ${uf}, Brasil`); // Fallback 1: No number/neighborhood
-      fallbackQueries.push(`${city}, ${uf}, Brasil`); // Fallback 2: Just City and State
-    } else if (parts.length >= 2) {
-      // In case it's just City, UF or something
-      const city = parts[parts.length - 2];
-      const uf = parts[parts.length - 1];
-      fallbackQueries.push(`${city}, ${uf}, Brasil`);
-    }
 
-    for (let query of fallbackQueries) {
+    // A: Priorizar busca pelo CEP via AwesomeAPI (altamente preciso para coordenadas no Brasil)
+    if (cep) {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
-          headers: { 'User-Agent': 'CardapioDigital/1.0' }
-        });
-        const data = await res.json();
-        if (data && data.length > 0) {
-          geocodeClient = data;
-          break; // Found it!
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+          const resCep = await fetch(`https://cep.awesomeapi.com.br/json/${cleanCep}`);
+          const dataCep = await resCep.json();
+          if (dataCep && dataCep.lat && dataCep.lng) {
+            clientLat = dataCep.lat;
+            clientLon = dataCep.lng;
+            console.log(`CEP ${cleanCep} encontrado com AwesomeAPI!`);
+          }
         }
       } catch (err) {
-        console.error("Geocode falhou para query:", query, err);
+        console.error("Geocode por CEP (AwesomeAPI) falhou:", err);
       }
     }
 
-    if (!geocodeClient || geocodeClient.length === 0) {
-      return res.status(400).json({ error: 'Endereço do cliente não encontrado' });
+    // B: Fallback para Nominatim se o CEP falhar
+    if (!clientLat || !clientLon) {
+      let fallbackQueries = [customerAddress];
+      
+      const parts = customerAddress ? customerAddress.split(',').map(p => p.trim()) : [];
+      if (parts.length >= 5) {
+        const [street, number, neighborhood, city, uf] = parts;
+        fallbackQueries.push(`${street}, ${city}, ${uf}, Brasil`); 
+        fallbackQueries.push(`${city}, ${uf}, Brasil`);
+      } else if (parts.length >= 2) {
+        const city = parts[parts.length - 2];
+        const uf = parts[parts.length - 1];
+        fallbackQueries.push(`${city}, ${uf}, Brasil`);
+      }
+
+      for (let query of fallbackQueries) {
+        if (!query) continue;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+            headers: { 'User-Agent': 'CardapioDigital/1.0' }
+          });
+          const data = await res.json();
+          if (data && data.length > 0) {
+            geocodeClient = data;
+            break; 
+          }
+        } catch (err) {
+          console.error("Geocode falhou para query:", query, err);
+        }
+      }
+
+      if (!geocodeClient || geocodeClient.length === 0) {
+        return res.status(400).json({ error: 'Endereço ou CEP do cliente não encontrado para calcular o frete' });
+      }
+      clientLat = geocodeClient[0].lat;
+      clientLon = geocodeClient[0].lon;
     }
-    const clientLat = geocodeClient[0].lat;
-    const clientLon = geocodeClient[0].lon;
 
     // 2. Geocoding Loja
     const geocodeStoreRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(settings.store_address)}&format=json&limit=1`, {
