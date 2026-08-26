@@ -406,7 +406,7 @@ export default function ProductModal({ product, onClose }: Props) {
                                             displayLabelCreme = `+ R$ ${Number(addon.price).toFixed(2)} (Extra)`;
                                           } else if (paidQtyForThis > 0) {
                                             isPaidCreme = true;
-                                            displayLabelCreme = `+ R$ ${Number(addon.price).toFixed(2)}`;
+                                            displayLabelCreme = `+ R$ ${Number(addon.price).toFixed(2)}${selectedCremesCount >= 1 ? ' (Extra)' : ''}`;
                                           } else {
                                             isPaidCreme = false;
                                             displayLabelCreme = "Incluso";
@@ -456,6 +456,7 @@ export default function ProductModal({ product, onClose }: Props) {
                               {/* Adicionais Section */}
                               {availableAddons.filter(a => a.type === 'adicional' || a.type === 'normal' || a.type === 'comum').length > 0 && (
                                 <div className="mb-4">
+                                  <h4 className="font-medium text-foreground text-xs mb-2 bg-primary/10 text-primary px-3 py-1.5 rounded-lg inline-block">Adicionais</h4>
                                   <div className="space-y-1.5 mt-2">
                                     {(() => {
                                       let freeAddUsed = 0;
@@ -478,7 +479,7 @@ export default function ProductModal({ product, onClose }: Props) {
                                             displayLabel = `+ R$ ${Number(addon.price).toFixed(2)} (Extra)`;
                                           } else if (paidQtyForThis > 0) {
                                             isPaid = true;
-                                            displayLabel = `+ R$ ${Number(addon.price).toFixed(2)}`;
+                                            displayLabel = `+ R$ ${Number(addon.price).toFixed(2)}${selectedAdicionaisCount >= 5 ? ' (Extra)' : ''}`;
                                           } else {
                                             isPaid = false;
                                             displayLabel = "Incluso";
