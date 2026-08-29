@@ -891,8 +891,19 @@ app.post('/api/orders', async (req, res) => {
     let orderDate = new Date();
     if (req.body.customDate) {
       const datePart = req.body.customDate; 
-      const timePart = orderDate.toISOString().split('T')[1]; 
-      orderDate = new Date(`${datePart}T${timePart}`);
+      
+      const options = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const formatter = new Intl.DateTimeFormat('pt-BR', options);
+      const parts = formatter.formatToParts(new Date());
+      let h = '12', m = '00', s = '00';
+      for (const p of parts) {
+        if (p.type === 'hour') h = p.value;
+        if (p.type === 'minute') m = p.value;
+        if (p.type === 'second') s = p.value;
+      }
+      if (h === '24') h = '00';
+      
+      orderDate = new Date(`${datePart}T${h}:${m}:${s}-03:00`);
       if (isNaN(orderDate.getTime())) orderDate = new Date();
     }
 
