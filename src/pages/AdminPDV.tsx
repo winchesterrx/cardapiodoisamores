@@ -134,8 +134,17 @@ export default function AdminPDV() {
     return true;
   });
 
+  const safeParse = (data: any) => {
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch (e) { return []; }
+    }
+    return [];
+  };
+
   const openProductModal = (product: Product) => {
-    if (product.addons && product.addons.length > 0) {
+    const comboSizes = safeParse(product.comboSizes);
+    if ((product.addons && product.addons.length > 0) || comboSizes.length > 0) {
       setSelectedProduct(product);
     } else {
       handleAddProduct(product, 1, [], '');

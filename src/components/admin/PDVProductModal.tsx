@@ -26,6 +26,17 @@ export default function PDVProductModal({
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>(initialAddonQuantities);
   const [notes, setNotes] = useState(initialNotes);
   const [quantity, setQuantity] = useState(initialQuantity);
+  const [selectedComboSizeIdx, setSelectedComboSizeIdx] = useState<number>(0);
+
+  const safeParse = (data: any) => {
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch (e) { return []; }
+    }
+    return [];
+  };
+
+  const comboSizes = product?.comboSizes ? safeParse(product.comboSizes) : [];
 
   if (!product) return null;
 
@@ -46,13 +57,28 @@ export default function PDVProductModal({
     .map((a) => ({ addon: a, quantity: addonQuantities[a.id] }));
 
   const addonTotal = selectedAddons.reduce((s, sa) => s + Number(sa.addon.price) * Number(sa.quantity), 0);
-  const itemTotal = (Number(product.price) + addonTotal) * Number(quantity);
+  
+  const basePrice = (product?.isCombo || comboSizes.length > 0) && comboSizes.length > 0
+    ? Number(comboSizes[selectedComboSizeIdx]?.price) || 0
+    : Number(product?.price) || 0;
+    
+  const itemTotal = (basePrice + addonTotal) * Number(quantity);
 
   const handleAdd = () => {
-    onAdd(product, quantity, selectedAddons, notes);
+    const productToAdd = { ...product };
+    if ((product.isCombo || comboSizes.length > 0) && comboSizes.length > 0) {
+       const selectedSize = comboSizes[selectedComboSizeIdx];
+       if (selectedSize) {
+         productToAdd.name = `${product.name} (${selectedSize.name})`;
+         productToAdd.price = selectedSize.price;
+       }
+    }
+
+    onAdd(productToAdd as Product, quantity, selectedAddons, notes);
     setAddonQuantities({});
     setNotes("");
     setQuantity(1);
+    setSelectedComboSizeIdx(0);
     onClose();
   };
 
@@ -83,7 +109,33 @@ export default function PDVProductModal({
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <p className="text-muted-foreground text-sm">{product.description}</p>
-            <p className="text-xl font-bold text-primary">R$ {Number(product.price).toFixed(2)}</p>
+            <p className="text-xl font-bold text-primary">
+              {comboSizes.length > 0 ? (
+                `A partir de R$ ${Math.min(...comboSizes.map((s: any) => Number(s.price) || 0)).toFixed(2)}`
+              ) : (
+                `R$ ${Number(product.price).toFixed(2)}`
+              )}
+            </p>
+
+            {comboSizes.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Tamanho</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {comboSizes.map((size: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedComboSizeIdx(idx)}
+                      className={`p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center text-center ${
+                        selectedComboSizeIdx === idx ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <span className="font-medium text-sm">{isNaN(Number(size.name)) ? size.name : `${size.name}ml`}</span>
+                      <span className="text-[10px]">R$ {Number(size.price).toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {availableAddons.length > 0 && (
               <div className="space-y-4">
