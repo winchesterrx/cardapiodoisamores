@@ -233,6 +233,9 @@ if (typeof window !== "undefined") {
 const BASE_URL = API_URL.replace(/\/api$/, '');
 const fixUrl = (url?: string) => {
   if (!url) return '';
+  if (url.includes('i.ibb.co')) {
+    return `${API_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+  }
   return url.startsWith('/uploads') ? `${BASE_URL}${url}` : url;
 };
 

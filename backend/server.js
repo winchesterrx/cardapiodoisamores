@@ -77,6 +77,32 @@ const saveBase64Image = async (base64Str) => {
   }
 };
 
+// ── Proxy de Imagem ──
+app.get('/api/proxy-image', async (req, res) => {
+  const imageUrl = req.query.url;
+  if (!imageUrl) return res.status(400).send('URL is required');
+
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      return res.status(response.status).send('Failed to fetch image');
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (contentType) {
+      res.set('Content-Type', contentType);
+    }
+    
+    // We convert the ArrayBuffer to a Buffer before sending
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Proxy image error:', error);
+    res.status(500).send('Error proxying image');
+  }
+});
+
 // ── Brands ──
 app.get('/api/brands', async (req, res) => {
   try {
