@@ -9,7 +9,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import webpush from 'web-push';
 import crypto from 'crypto';
-import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, readyToPickupIfoodOrder, cancelIfoodOrder } from './ifoodIntegration.js';
+import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, readyToPickupIfoodOrder, cancelIfoodOrder, getIfoodStatus, testIfoodConnection } from './ifoodIntegration.js';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
@@ -1344,6 +1344,27 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
   }
 });
 // ── iFood Integration Endpoints ──
+
+// Rota de diagnóstico - status da integração iFood
+app.get('/api/ifood/status', async (req, res) => {
+  try {
+    const status = getIfoodStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao obter status do iFood', details: err.message });
+  }
+});
+
+// Rota de teste de conexão - testa tudo de ponta a ponta
+app.get('/api/ifood/test-connection', async (req, res) => {
+  try {
+    const result = await testIfoodConnection();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao testar conexão com iFood', details: err.message });
+  }
+});
+
 app.post('/api/ifood/confirm/:id', authenticateToken, async (req, res) => {
   try {
     const success = await confirmIfoodOrder(req.params.id);
