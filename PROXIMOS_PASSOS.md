@@ -50,3 +50,13 @@ AmanhÃ£, o seu foco serÃ¡ colocar o **Backend no ar** e conectÃ¡-lo ao seu **Fro
 ğŸ‰ **Pronto!** A partir de amanhÃ£, quando vocÃª completar esses 3 passos, o seu sistema inteiro (Admin, CardÃ¡pio, Banco de Dados UOL, Upload de Imagens na nuvem) estarÃ¡ funcionando **100% online e de graÃ§a**!
 
 Tenha um Ã³timo descanso e atÃ© amanhÃ£! Se precisar de ajuda em qualquer etapa, Ã© sÃ³ chamar.
+
+
+## Tarefas Pendentes (Integração iFood & Relatórios)
+
+1. **Registro de Adicionais**: Extrair a propriedade 'options' do pedido do iFood e registrar na tabela 'order_item_addons' para aparecer no relatório de adicionais mais vendidos.
+2. **Registro de Clientes**: Salvar telefone e nome do cliente do iFood na tabela 'customers' para aparecer nos relatórios de clientes recorrentes.
+3. **Sistema de Backup**: Criar um botão no painel Admin para gerar e baixar um arquivo de backup do banco de dados (Aiven).
+
+**Perguntas em Aberto:**
+- O iFood usa nomes próprios para os produtos. Devemos criar uma lógica para aproximar o nome que vem do iFood com o que está no seu sistema, ou os relatórios podem mostrar os nomes exatos do iFood?
