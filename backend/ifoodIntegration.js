@@ -159,12 +159,18 @@ async function processOrder(orderData) {
 
     // ── Mapeamento robusto de dados do iFood ──
     
-    // Total: A API do iFood usa orderData.total.orderAmount ou orderData.total.subTotal
+    // Total (Valor Bruto sem descontos): O cliente pediu para ignorar os descontos no total salvo, 
+    // pois o iFood reembolsa cupons (Clube iFood, etc). Usamos subTotal + deliveryFee.
     let total = 0;
-    if (orderData.total && orderData.total.orderAmount !== undefined) {
+    if (orderData.total && orderData.total.subTotal !== undefined) {
+      // Prioridade 1: Valor Bruto (Subtotal + Entrega + Taxas Adicionais)
+      const sub = orderData.total.subTotal || 0;
+      const fee = orderData.total.deliveryFee || 0;
+      const add = orderData.total.additionalFees || 0;
+      total = sub + fee + add;
+    } else if (orderData.total && orderData.total.orderAmount !== undefined) {
+      // Prioridade 2: Valor pago pelo cliente (Fallback)
       total = orderData.total.orderAmount;
-    } else if (orderData.total && orderData.total.subTotal !== undefined) {
-      total = orderData.total.subTotal;
     } else if (orderData.payments) {
       // Fallback para o formato antigo
       total = orderData.payments.prepaid > 0 ? orderData.payments.prepaid : (orderData.payments.pending > 0 ? orderData.payments.pending : 0);
