@@ -197,8 +197,14 @@ async function processOrder(orderData) {
     }
 
     // Cliente
-    const customerName = orderData.customer?.name || 'Cliente iFood';
+    let customerName = orderData.customer?.name || 'Cliente iFood';
     const customerWhatsApp = orderData.customer?.phone?.number || orderData.customer?.phone || '';
+
+    // Se o cliente pagou um valor menor (com desconto), adicionamos um aviso no nome dele 
+    // para aparecer no painel, já que a receita bruta foi para a variável 'total'.
+    if (orderData.total && orderData.total.orderAmount !== undefined && orderData.total.orderAmount < total) {
+      customerName += ` (Pagou R$ ${orderData.total.orderAmount.toFixed(2).replace('.', ',')})`;
+    }
     
     // Endereço
     let address = '';
