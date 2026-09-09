@@ -91,8 +91,8 @@ async function fetchMerchantIds() {
     
     if (!response.ok) {
       const text = await response.text();
-      console.error(`❌ iFood: Erro ${response.status} ao buscar merchants: ${text}`);
-      _lastError = `Merchant fetch error ${response.status}: ${text}`;
+      console.warn(`⚠️ iFood: Módulo Merchant não disponível (${response.status}). Polling funcionará sem filtro de merchant.`);
+      console.warn(`⚠️ Isso é normal se o módulo 'Merchant' não foi habilitado no app do iFood.`);
       return;
     }
     
@@ -302,8 +302,8 @@ async function pollEvents() {
       headers['x-polling-merchants'] = merchantIds.join(',');
     }
 
-    // ENDPOINT CORRETO: /orders:polling (NÃO /events:polling)
-    const res = await fetch('https://merchant-api.ifood.com.br/order/v1.0/orders:polling', {
+    // ENDPOINT CORRETO: /events:polling
+    const res = await fetch('https://merchant-api.ifood.com.br/order/v1.0/events:polling', {
       headers
     });
     
@@ -605,7 +605,7 @@ export const testIfoodConnection = async () => {
           pollHeaders['x-polling-merchants'] = merchants.map(m => m.id).join(',');
         }
         
-        const pollRes = await fetch('https://merchant-api.ifood.com.br/order/v1.0/orders:polling', {
+        const pollRes = await fetch('https://merchant-api.ifood.com.br/order/v1.0/events:polling', {
           headers: pollHeaders
         });
         
