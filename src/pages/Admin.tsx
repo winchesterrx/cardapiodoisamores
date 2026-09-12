@@ -685,9 +685,17 @@ export default function Admin() {
           <div className="bg-primary text-primary-foreground rounded-lg p-2"><Settings size={20} /></div>
           <h1 className="text-xl font-display text-foreground">Tamires</h1>
         </div>
-        <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
-          <LogOut size={16} /> Sair
-        </button>
+        
+        <div className="flex items-center gap-4">
+          {pushPermission !== "granted" && (
+            <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
+              🔔 Ativar Notificações
+            </button>
+          )}
+          <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
       </header>
 
       <div className="flex border-b border-border bg-card overflow-x-auto">
