@@ -17,7 +17,7 @@ export default function ProductModal({ product, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [selectedComboSizeIdx, setSelectedComboSizeIdx] = useState<number>(0);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
-  
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   const safeParse = (data: any) => {
     if (Array.isArray(data)) return data;
@@ -215,6 +215,7 @@ export default function ProductModal({ product, onClose }: Props) {
                         ))}
                       </div>
                     </>
+                  )}
                 </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-6xl">🍽️</div>
@@ -334,7 +335,8 @@ export default function ProductModal({ product, onClose }: Props) {
                         <div className="mb-4">
                           <h3 className="font-semibold text-foreground text-sm mb-2">Monte sua Barca</h3>
                           
-                          <>
+                          {currentStep === 1 && (
+                            <>
                               <p className="text-xs text-muted-foreground mb-4"><strong>Passo 1:</strong> Escolha 1 Creme (Obrigatório e Gratuito).</p>
                               {/* Cremes Section */}
                               {availableAddons.filter(a => a.type === 'creme').length > 0 && (
@@ -366,8 +368,10 @@ export default function ProductModal({ product, onClose }: Props) {
                                 </div>
                               )}
                             </>
+                          )}
 
-                          <>
+                          {currentStep === 2 && (
+                            <>
                               <p className="text-xs text-muted-foreground mb-4"><strong>Passo 2:</strong> Escolha seus 5 Adicionais gratuitos!</p>
                               
                               {selectedAdicionaisCount >= 5 && (
@@ -522,6 +526,7 @@ export default function ProductModal({ product, onClose }: Props) {
                                 </div>
                               )}
                             </>
+                          )}
                         </div>
                       )}
 
@@ -564,7 +569,7 @@ export default function ProductModal({ product, onClose }: Props) {
                     </div>
                   )}
 
-              {true && (
+              {(!product.isBarca || (product.isBarca && currentStep === 2)) && (
                 <div className="mt-4">
                   <h3 className="font-semibold text-foreground text-sm mb-1.5">Observações</h3>
                   <textarea
@@ -587,7 +592,15 @@ export default function ProductModal({ product, onClose }: Props) {
 
           {!product.isMadeToOrder ? (
             <div className="border-t border-border bg-card px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] shrink-0 sm:rounded-b-3xl">
-              (
+              {product.isBarca && currentStep === 1 ? (
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  disabled={!availableAddons.some(a => a.type === 'creme' && addonQuantities[a.id] > 0)}
+                  className="w-full bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  Avançar para Adicionais
+                </button>
+              ) : (
                 <div className="flex items-center gap-3">
                   {product.isBarca && currentStep === 2 && (
                     <button
