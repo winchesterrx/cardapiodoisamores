@@ -30,6 +30,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [customerName, setCustomerName] = useState(() => localStorage.getItem("customer_name") || "");
   const [customerWhatsApp, setCustomerWhatsApp] = useState(() => localStorage.getItem("customer_whatsapp") || "");
   const [customerCPF, setCustomerCPF] = useState(() => localStorage.getItem("customer_cpf") || "");
+  const [needsSpoon, setNeedsSpoon] = useState(false);
   
   // Settings states
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
@@ -461,7 +462,10 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     message += `👤 *Cliente:* ${customerName.trim()}\n`;
     message += `📱 *WhatsApp:* ${customerWhatsApp}\n`;
     if (cleanCPF) {
-      message += `🪪 *CPF:* ${customerCPF}\n`;
+      message += `📄 *CPF:* ${customerCPF}\n`;
+    }
+    if (needsSpoon) {
+      message += `🥄 *OBS:* Enviar colherzinha/talheres\n`;
     }
     message += `\n${itemLines}\n\n`;
     
@@ -615,6 +619,19 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                       className="w-full border border-border rounded-xl p-3 text-sm bg-background text-foreground mt-1 focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     
+                    <div className="mt-4 flex items-center gap-3 bg-secondary/20 p-3 rounded-xl border border-border">
+                      <input 
+                        type="checkbox" 
+                        id="needsSpoon" 
+                        checked={needsSpoon} 
+                        onChange={(e) => setNeedsSpoon(e.target.checked)} 
+                        className="w-5 h-5 accent-primary rounded cursor-pointer"
+                      />
+                      <label htmlFor="needsSpoon" className="text-sm font-medium text-foreground cursor-pointer">
+                        Deseja colherzinha / talheres?
+                      </label>
+                    </div>
+
                     {/* Fidelity Check Logic inline */}
                     {loyaltySettings?.active && (
                       <div className="mt-2 text-sm bg-primary/5 border border-primary/20 rounded-xl p-3">

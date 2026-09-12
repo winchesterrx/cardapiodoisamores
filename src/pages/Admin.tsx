@@ -90,6 +90,41 @@ export default function Admin() {
   );
   const [now, setNow] = useState(Date.now());
   const [prevReceivedCount, setPrevReceivedCount] = useState(0);
+  const [pushPermission, setPushPermission] = useState(Notification.permission);
+
+  const subscribeToPush = async () => {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: "BFgOh3KL1dAkiRzJsQBD13HuoFAjxmkRJZQiYxKXTbP7L_IjniMjeaUxwZByxOEStN2Gk3SoElvYRBe7y1LvhjE"
+        });
+        await fetch(API_URL + "/admin/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription })
+        });
+        console.log("Push registrado!");
+      } catch (err) {
+        console.error("Erro no push:", err);
+      }
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    const permission = await Notification.requestPermission();
+    setPushPermission(permission);
+    if (permission === "granted") {
+      subscribeToPush();
+    }
+  };
+
+  useEffect(() => {
+    if (pushPermission === "granted") {
+      subscribeToPush();
+    }
+  }, [pushPermission]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
@@ -1551,4 +1586,5 @@ export default function Admin() {
     </div>
   );
 }
+
 
