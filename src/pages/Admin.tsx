@@ -618,9 +618,9 @@ export default function Admin() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 items-center">
-                    {order.status === "pronto" ? (
+                    {["recebido", "confirmado", "preparando", "pronto"].includes(order.status) && order.consumeType === "delivery" && (
                       <div className="flex items-center gap-2 border border-border rounded-lg px-2 py-1 bg-muted/20">
-                        <span className="text-xs text-muted-foreground font-medium">Despachar com:</span>
+                        <span className="text-xs text-muted-foreground font-medium">Despachar:</span>
                         <select 
                           className="text-xs bg-transparent border-none focus:outline-none py-1 cursor-pointer"
                           onChange={(e) => {
@@ -630,13 +630,14 @@ export default function Admin() {
                           }}
                           defaultValue=""
                         >
-                          <option value="" disabled>Selecione um entregador</option>
+                          <option value="" disabled>Selecione entregador...</option>
                           {couriers.map((c: any) => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
                         </select>
                       </div>
-                    ) : nextStatus && (
+                    )}
+                    {nextStatus && (
                       <button onClick={() => handleUpdateOrderStatus(order.id, nextStatus)}
                         className="bg-primary text-primary-foreground text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1">
                         <CheckCircle2 size={14} /> {statusConfig[nextStatus].label}
