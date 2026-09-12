@@ -17,7 +17,6 @@ export default function ProductModal({ product, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [selectedComboSizeIdx, setSelectedComboSizeIdx] = useState<number>(0);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   const safeParse = (data: any) => {
     if (Array.isArray(data)) return data;
@@ -335,9 +334,8 @@ export default function ProductModal({ product, onClose }: Props) {
                         <div className="mb-4">
                           <h3 className="font-semibold text-foreground text-sm mb-2">Monte sua Barca</h3>
                           
-                          {currentStep === 1 && (
-                            <>
-                              <p className="text-xs text-muted-foreground mb-4"><strong>Passo 1:</strong> Escolha 1 Creme (Obrigatório e Gratuito).</p>
+                          <div className="mb-6">
+                            <p className="text-xs text-muted-foreground mb-4"><strong>Passo 1:</strong> Escolha 1 Creme (Obrigatório e Gratuito).</p>
                               {/* Cremes Section */}
                               {availableAddons.filter(a => a.type === 'creme').length > 0 && (
                                 <div className="mb-4">
@@ -367,12 +365,12 @@ export default function ProductModal({ product, onClose }: Props) {
                                   </div>
                                 </div>
                               )}
-                            </>
-                          )}
+                          </div>
 
-                          {currentStep === 2 && (
-                            <>
-                              <p className="text-xs text-muted-foreground mb-4"><strong>Passo 2:</strong> Escolha seus 5 Adicionais gratuitos!</p>
+                          <div className="w-full h-px bg-border my-6"></div>
+
+                          <div className="mb-4">
+                            <p className="text-xs text-muted-foreground mb-4"><strong>Passo 2:</strong> Escolha seus 5 Adicionais gratuitos!</p>
                               
                               {selectedAdicionaisCount >= 5 && (
                                 <div className="bg-amber-100 border border-amber-200 rounded-xl p-3 mb-4">
@@ -525,8 +523,7 @@ export default function ProductModal({ product, onClose }: Props) {
                                   </div>
                                 </div>
                               )}
-                            </>
-                          )}
+                          </div>
                         </div>
                       )}
 
@@ -569,8 +566,7 @@ export default function ProductModal({ product, onClose }: Props) {
                     </div>
                   )}
 
-              {(!product.isBarca || (product.isBarca && currentStep === 2)) && (
-                <div className="mt-4">
+              <div className="mt-4">
                   <h3 className="font-semibold text-foreground text-sm mb-1.5">Observações</h3>
                   <textarea
                     value={notes}
@@ -579,7 +575,6 @@ export default function ProductModal({ product, onClose }: Props) {
                     className="w-full border border-border rounded-xl p-3 text-xs bg-background text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
-              )}
                 </>
               ) : (
                 <div className="mt-6 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
@@ -592,49 +587,32 @@ export default function ProductModal({ product, onClose }: Props) {
 
           {!product.isMadeToOrder ? (
             <div className="border-t border-border bg-card px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] shrink-0 sm:rounded-b-3xl">
-              {product.isBarca && currentStep === 1 ? (
-                <button
-                  onClick={() => setCurrentStep(2)}
-                  disabled={!availableAddons.some(a => a.type === 'creme' && addonQuantities[a.id] > 0)}
-                  className="w-full bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  Avançar para Adicionais
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  {product.isBarca && currentStep === 2 && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-center gap-2 bg-muted rounded-xl p-1 shrink-0">
                     <button
-                      onClick={() => setCurrentStep(1)}
-                      className="bg-muted text-foreground font-semibold px-4 py-3 rounded-xl text-sm active:scale-95 transition-transform"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="rounded-lg p-2 active:bg-background transition-colors"
                     >
-                      Voltar
+                      <Minus size={16} />
                     </button>
-                  )}
-                  <div className="flex-1 flex items-center justify-between gap-3">
-                    <div className="flex items-center justify-center gap-2 bg-muted rounded-xl p-1 shrink-0">
-                      <button
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="rounded-lg p-2 active:bg-background transition-colors"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="font-bold text-base text-foreground w-6 text-center">{quantity}</span>
-                      <button
-                        onClick={() => setQuantity((q) => q + 1)}
-                        className="rounded-lg p-2 active:bg-background transition-colors"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
+                    <span className="font-bold text-base text-foreground w-6 text-center">{quantity}</span>
                     <button
-                      onClick={handleAdd}
-                      className="flex-1 bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform whitespace-nowrap overflow-hidden text-ellipsis"
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="rounded-lg p-2 active:bg-background transition-colors"
                     >
-                      Adicionar R$ {itemTotal.toFixed(2)}
+                      <Plus size={16} />
                     </button>
                   </div>
+                  <button
+                    onClick={handleAdd}
+                    disabled={product.isBarca && !availableAddons.some(a => a.type === 'creme' && addonQuantities[a.id] > 0)}
+                    className="flex-1 bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl text-sm shadow-card active:scale-95 transition-transform whitespace-nowrap overflow-hidden text-ellipsis disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    Adicionar R$ {itemTotal.toFixed(2)}
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="border-t border-border bg-card px-4 pt-3 pb-[max(1rem,calc(env(safe-area-inset-bottom)+1rem))] shrink-0 sm:rounded-b-3xl">
