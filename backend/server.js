@@ -898,6 +898,11 @@ app.post('/api/orders', async (req, res) => {
       usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee, couponId, courierId, origin
     } = req.body;
 
+    // Forçar auto-confirmação
+    if (status === 'recebido' || !status) {
+      status = 'confirmado';
+    }
+
     if (!id) {
       id = crypto.randomUUID();
     }
@@ -1008,6 +1013,34 @@ app.post('/api/orders', async (req, res) => {
     }
 
     await connection.commit();
+    
+    // Disparar Push Notification para os Administradores
+    if (publicVapidKey) {
+      try {
+        const [adminSubs] = await db.query('SELECT * FROM admin_push_subscriptions');
+        const payload = JSON.stringify({
+          title: 'Novo Pedido!',
+          body: `Pedido #${generatedOrderNumber} de ${customerName || 'Cliente'}. Total: R$ ${Number(total).toFixed(2).replace('.', ',')}`,
+          url: '/admin'
+        });
+        
+        for (const sub of adminSubs) {
+          const pushSubscription = {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
+          };
+          try {
+            await webpush.sendNotification(pushSubscription, payload);
+          } catch (e) {
+            console.error('Erro ao enviar push pro admin, possivelmente inscrição expirou:', e);
+            // Opcional: remover subscrição se e.statusCode === 410
+          }
+        }
+      } catch (pushErr) {
+        console.error('Erro ao buscar admin subs:', pushErr);
+      }
+    }
+
     res.status(201).json({ message: 'Pedido criado com sucesso', orderNumber: generatedOrderNumber });
   } catch (error) {
     try { await connection.rollback(); } catch (err) {}
@@ -1041,6 +1074,30 @@ app.post('/api/push/subscribe', async (req, res) => {
   } catch (err) {
     console.error('Erro ao salvar push subscription:', err);
     res.status(500).json({ error: 'Erro interno ao salvar inscrição' });
+  }
+});
+
+app.post('/api/admin/push/subscribe', async (req, res) => {
+  const { subscription } = req.body;
+  
+  if (!subscription) {
+    return res.status(400).json({ error: 'Faltando Inscrição' });
+  }
+
+  try {
+    await db.query(`
+      INSERT INTO admin_push_subscriptions (endpoint, p256dh, auth) 
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE p256dh = VALUES(p256dh), auth = VALUES(auth)
+    `, [
+      subscription.endpoint, 
+      subscription.keys.p256dh, 
+      subscription.keys.auth
+    ]);
+    res.status(201).json({ message: 'Inscrição admin salva com sucesso' });
+  } catch (err) {
+    console.error('Erro ao salvar admin push subscription:', err);
+    res.status(500).json({ error: 'Erro interno ao salvar inscrição admin' });
   }
 });
 

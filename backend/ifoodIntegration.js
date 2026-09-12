@@ -1,5 +1,6 @@
 import db from './db.js';
 import dotenv from 'dotenv';
+import webpush from 'web-push';
 dotenv.config();
 
 // Credenciais de PRODUÇÃO (via variáveis de ambiente - nunca usar fallback em produção!)
@@ -11,6 +12,12 @@ if (!IFOOD_CLIENT_ID || !IFOOD_CLIENT_SECRET) {
   console.error('🔴 Os pedidos do iFood NÃO serão recebidos até que essas variáveis sejam configuradas no Render.');
 } else {
   console.log(`✅ iFood: Usando clientId = ${IFOOD_CLIENT_ID.substring(0, 8)}... (produção)`);
+}
+
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
+if (publicVapidKey && privateVapidKey) {
+  webpush.setVapidDetails('mailto:contato@exemplo.com', publicVapidKey, privateVapidKey);
 }
 
 // ── Estado da Integração ──
@@ -233,7 +240,7 @@ async function processOrder(orderData) {
       null, // mesa
       customerWhatsApp, 
       null, // cpf
-      'recebido', // status inicial
+      'confirmado', // status inicial (auto-confirm)
       customerName, 
       null, // troco
       deliveryFee, 
@@ -284,10 +291,42 @@ async function processOrder(orderData) {
 
     // Timeline inicial
     await connection.query('INSERT INTO order_timelines (order_id, status, timestamp) VALUES (?, ?, ?)', [
-      orderData.id, 'recebido', now
+      orderData.id, 'confirmado', now
     ]);
 
     await connection.commit();
+    
+    // Confirma no iFood imediatamente
+    try {
+      await confirmIfoodOrder(orderData.id);
+      console.log(`✅ iFood: Pedido ${orderData.id} auto-confirmado na plataforma iFood!`);
+    } catch (e) {
+      console.error(`❌ iFood: Falha ao auto-confirmar pedido ${orderData.id} na plataforma:`, e.message);
+    }
+
+    // Disparar Push Notification para os Administradores
+    if (publicVapidKey) {
+      try {
+        const [adminSubs] = await db.query('SELECT * FROM admin_push_subscriptions');
+        const payload = JSON.stringify({
+          title: 'Novo Pedido iFood!',
+          body: `Pedido #${orderData.displayId || orderData.id.substring(0,6)} de ${customerName || 'Cliente'}. Total: R$ ${Number(total).toFixed(2).replace('.', ',')}`,
+          url: '/admin'
+        });
+        for (const sub of adminSubs) {
+          const pushSubscription = {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
+          };
+          try {
+            await webpush.sendNotification(pushSubscription, payload);
+          } catch (pushSendErr) {}
+        }
+      } catch (pushErr) {
+        console.error('Erro ao buscar admin subs no iFood:', pushErr);
+      }
+    }
+
     _ordersReceived++;
     _lastEventTime = new Date().toISOString();
     console.log(`✅ iFood: Pedido ${orderData.id} salvo no banco de dados! (Total recebidos: ${_ordersReceived})`);
