@@ -618,7 +618,7 @@ export default function Admin() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 items-center">
-                    {["recebido", "confirmado", "preparando", "pronto"].includes(order.status) && order.consumeType === "delivery" && (
+                    {["recebido", "confirmado", "preparando", "pronto"].includes(order.status) && order.consumeType === "entrega" && (
                       <div className="flex items-center gap-2 border border-border rounded-lg px-2 py-1 bg-muted/20">
                         <span className="text-xs text-muted-foreground font-medium">Despachar:</span>
                         <select 
