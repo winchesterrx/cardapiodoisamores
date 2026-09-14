@@ -527,7 +527,7 @@ export default function ProductModal({ product, onClose }: Props) {
                         </div>
                       )}
 
-                      {!product.isBarca && availableAddons.some(a => !isAddonFree(a.id)) && (
+                      {!product.isBarca && !product.isCombo && availableAddons.some(a => !isAddonFree(a.id)) && (
                         <div>
                           <h3 className="font-semibold text-foreground text-sm mb-2">Adicionais</h3>
                           <div className="space-y-1.5">

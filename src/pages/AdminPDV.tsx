@@ -237,6 +237,24 @@ export default function AdminPDV() {
     }
   };
 
+  const sortedProducts = [...products].sort((a, b) => {
+    const isA300 = a.name.includes("300");
+    const isB300 = b.name.includes("300");
+    const isA500 = a.name.includes("500");
+    const isB500 = b.name.includes("500");
+    const isA700 = a.name.includes("700");
+    const isB700 = b.name.includes("700");
+
+    const aScore = isA300 ? 1 : isA500 ? 2 : isA700 ? 3 : a.isCombo ? 4 : a.isBarca ? 5 : 6;
+    const bScore = isB300 ? 1 : isB500 ? 2 : isB700 ? 3 : b.isCombo ? 4 : b.isBarca ? 5 : 6;
+    
+    if (aScore !== bScore) {
+      return aScore - bScore;
+    }
+    
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex gap-4 border-b border-border pb-2">
@@ -267,7 +285,7 @@ export default function AdminPDV() {
           <div className="md:col-span-2 space-y-4">
             <h2 className="text-xl font-bold">Catálogo (Frente de Caixa)</h2>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map(p => (
+              {sortedProducts.map(p => (
                 <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openProductModal(p)}>
                   <div className="aspect-square bg-muted">
                     {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}

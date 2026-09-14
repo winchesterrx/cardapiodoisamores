@@ -11,7 +11,8 @@ self.addEventListener('push', function(event) {
         url: payload.url || '/'
       },
       // Require interaction para que a notificação não suma sozinha no Windows/Android
-      requireInteraction: true
+      requireInteraction: true,
+      silent: false
     };
     
     event.waitUntil(
