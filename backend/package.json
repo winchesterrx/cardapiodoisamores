@@ -4,6 +4,9 @@
   "description": "Backend API para o Cardápio Digital",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node update-db-v2.js && node server.js",
     "dev": "nodemon server.js"
