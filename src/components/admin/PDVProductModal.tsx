@@ -137,7 +137,7 @@ export default function PDVProductModal({
               </div>
             )}
 
-            {!product.isCombo && availableAddons.length > 0 && (
+            {!(product.isCombo || (product.category && product.category.toLowerCase().includes("combinado"))) && availableAddons.length > 0 && (
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">Adicionais</h3>
                 <div className="space-y-3">

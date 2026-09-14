@@ -238,15 +238,20 @@ export default function AdminPDV() {
   };
 
   const sortedProducts = [...products].sort((a, b) => {
-    const isA300 = a.name.includes("300");
-    const isB300 = b.name.includes("300");
-    const isA500 = a.name.includes("500");
-    const isB500 = b.name.includes("500");
-    const isA700 = a.name.includes("700");
-    const isB700 = b.name.includes("700");
+    const isA300 = a.name.toLowerCase().includes("pequeno") || a.name.includes("300");
+    const isB300 = b.name.toLowerCase().includes("pequeno") || b.name.includes("300");
+    const isA500 = a.name.toLowerCase().includes("médio") || a.name.toLowerCase().includes("medio") || a.name.includes("500");
+    const isB500 = b.name.toLowerCase().includes("médio") || b.name.toLowerCase().includes("medio") || b.name.includes("500");
+    const isA700 = a.name.toLowerCase().includes("grande") || a.name.includes("700");
+    const isB700 = b.name.toLowerCase().includes("grande") || b.name.includes("700");
 
-    const aScore = isA300 ? 1 : isA500 ? 2 : isA700 ? 3 : a.isCombo ? 4 : a.isBarca ? 5 : 6;
-    const bScore = isB300 ? 1 : isB500 ? 2 : isB700 ? 3 : b.isCombo ? 4 : b.isBarca ? 5 : 6;
+    const aIsCombo = a.isCombo || (a.category && a.category.toLowerCase().includes("combinado"));
+    const bIsCombo = b.isCombo || (b.category && b.category.toLowerCase().includes("combinado"));
+    const aIsBarca = a.isBarca || (a.category && a.category.toLowerCase().includes("barca"));
+    const bIsBarca = b.isBarca || (b.category && b.category.toLowerCase().includes("barca"));
+
+    const aScore = isA300 ? 1 : isA500 ? 2 : isA700 ? 3 : aIsCombo ? 4 : aIsBarca ? 5 : 6;
+    const bScore = isB300 ? 1 : isB500 ? 2 : isB700 ? 3 : bIsCombo ? 4 : bIsBarca ? 5 : 6;
     
     if (aScore !== bScore) {
       return aScore - bScore;
