@@ -1078,6 +1078,22 @@ app.post('/api/push/subscribe', async (req, res) => {
   }
 });
 
+app.get('/api/admin/push/key', (req, res) => {
+  if (!publicVapidKey) {
+    return res.status(500).json({ error: 'Chaves VAPID nǜo configuradas no servidor' });
+  }
+  res.json({ publicKey: publicVapidKey });
+});
+
+app.post('/api/admin/push/clear', async (req, res) => {
+  try {
+    await db.query('DELETE FROM admin_push_subscriptions');
+    res.json({ success: true, message: 'Todas as inscri玢es apagadas' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/admin/push/test', async (req, res) => {
   if (!publicVapidKey || !privateVapidKey) {
     return res.status(500).json({ error: 'Chaves VAPID nǜo configuradas no servidor' });

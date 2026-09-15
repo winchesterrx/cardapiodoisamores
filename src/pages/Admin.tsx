@@ -109,9 +109,14 @@ export default function Admin() {
           return outputArray;
         };
 
-        const publicVapidKey = 'BFgOh3KL1dAkiRzJsQBD13HuoFAjxmkRJZQiYxKXTbP7L_IjniMjeaUxwZByxOEStN2Gk3SoElvYRBe7y1LvhjE';
-
-        const existingSub = await registration.pushManager.getSubscription();
+          const keyRes = await fetch(API_URL + "/admin/push/key");
+          if (!keyRes.ok) {
+            alert("Erro ao buscar chave publica do servidor");
+            return;
+          }
+          const { publicKey: publicVapidKey } = await keyRes.json();
+  
+          const existingSub = await registration.pushManager.getSubscription();
         if (existingSub) {
           await existingSub.unsubscribe();
         }
