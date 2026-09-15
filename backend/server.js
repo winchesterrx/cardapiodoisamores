@@ -1031,9 +1031,13 @@ app.post('/api/orders', async (req, res) => {
           };
           try {
             await webpush.sendNotification(pushSubscription, payload);
-          } catch (e) {
-            console.error('Erro ao enviar push pro admin, possivelmente inscrição expirou:', e);
-            // Opcional: remover subscrição se e.statusCode === 410
+          } catch (err) {
+            console.error('Erro ao enviar push pro admin, possivelmente inscricao expirou', err);
+            if (err.statusCode === 410 || err.statusCode === 403) {
+              try {
+                await db.query('DELETE FROM admin_push_subscriptions WHERE endpoint = ?', [sub.endpoint]);
+              } catch(e) {}
+            }
           }
         }
       } catch (pushErr) {
@@ -1122,6 +1126,11 @@ app.post('/api/admin/push/test', async (req, res) => {
         successes++;
       } catch (e) {
         errors.push({ endpoint: sub.endpoint, error: e.message, statusCode: e.statusCode });
+        if (e.statusCode === 410 || e.statusCode === 403) {
+          try {
+            await db.query('DELETE FROM admin_push_subscriptions WHERE endpoint = ?', [sub.endpoint]);
+          } catch(err) {}
+        }
       }
     }
     
