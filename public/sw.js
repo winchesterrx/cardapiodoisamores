@@ -4,8 +4,6 @@ self.addEventListener('push', function(event) {
     const title = payload.title || 'Nova Notificação';
     const options = {
       body: payload.body || 'Você tem uma nova mensagem.',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
       vibrate: [200, 100, 200, 100, 200, 100, 200],
       data: {
         url: payload.url || '/'
