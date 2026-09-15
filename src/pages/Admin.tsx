@@ -109,7 +109,7 @@ export default function Admin() {
           return outputArray;
         };
 
-        const publicVapidKey = 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs';
+        const publicVapidKey = 'BFgOh3KL1dAkiRzJsQBD13HuoFAjxmkRJZQiYxKXTbP7L_IjniMjeaUxwZByxOEStN2Gk3SoElvYRBe7y1LvhjE';
 
         const existingSub = await registration.pushManager.getSubscription();
         if (existingSub) {
