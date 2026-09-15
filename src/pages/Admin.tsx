@@ -134,7 +134,6 @@ export default function Admin() {
         });
         if (response.ok) {
           console.log("Push registrado!");
-          alert("Sucesso! O seu aparelho agora está registrado para receber notificações Push nativas.");
         } else {
           alert("Falha ao registrar push no servidor. Código: " + response.status);
         }
@@ -751,11 +750,8 @@ export default function Admin() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={testPush} className="bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
-            🧪 Testar Push
-          </button>
-          <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
-            🔔 Ativar Notificações
+          <button onClick={requestNotificationPermission} title="Ativar Notificações" className="bg-primary/10 text-primary hover:bg-primary/20 p-2 rounded-xl text-xs sm:text-sm shadow-sm transition-colors flex items-center justify-center">
+            🔔
           </button>
           <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
             <LogOut size={16} /> Sair
