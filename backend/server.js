@@ -296,6 +296,7 @@ app.get('/api/products', async (req, res) => {
         image: p.image,
         images: images.length ? images : (p.image ? [p.image] : []),
         category: p.category_id,
+        categoryName: p.category_name,
         brand: p.brand,
         addons: addons,
         isPromo: Boolean(p.is_promo),

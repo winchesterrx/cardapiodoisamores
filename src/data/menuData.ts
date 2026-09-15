@@ -53,6 +53,7 @@ export interface Product {
   image: string;
   images?: string[];
   category: string;
+  categoryName?: string;
   brand?: string;
   addons: Addon[];
   isPromo: boolean;

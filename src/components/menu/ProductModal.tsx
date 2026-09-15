@@ -527,7 +527,7 @@ export default function ProductModal({ product, onClose }: Props) {
                         </div>
                       )}
 
-                      {!(product.isBarca || (product.category && product.category.toLowerCase().includes("barca"))) && !(product.isCombo || (product.category && product.category.toLowerCase().includes("combinado"))) && availableAddons.some(a => !isAddonFree(a.id)) && (
+                      {!(product.isBarca || (product.categoryName && product.categoryName.toLowerCase().includes("barca"))) && !(product.isCombo || (product.categoryName && product.categoryName.toLowerCase().includes("combinado"))) && availableAddons.some(a => !isAddonFree(a.id)) && (
                         <div>
                           <h3 className="font-semibold text-foreground text-sm mb-2">Adicionais</h3>
                           <div className="space-y-1.5">
