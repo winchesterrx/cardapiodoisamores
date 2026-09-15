@@ -53,14 +53,16 @@ export default function Admin() {
 
   const { data: products = [], refetch: refetchProducts } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
-  const { data: couriers = [] } = useQuery({ queryKey: ['couriers'], queryFn: async () => {
-    const res = await fetch(`${API_URL}/users`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) return [];
-    const all = await res.json();
-    return all.filter((u: any) => u.role === 'courier');
-  }});
+  const { data: couriers = [] } = useQuery({
+    queryKey: ['couriers'], queryFn: async () => {
+      const res = await fetch(`${API_URL}/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return [];
+      const all = await res.json();
+      return all.filter((u: any) => u.role === 'courier');
+    }
+  });
   const { data: addons = [], refetch: refetchAddons } = useQuery({ queryKey: ['addons'], queryFn: fetchAddons });
   const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders, refetchInterval: 15000 });
   const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
@@ -81,7 +83,7 @@ export default function Admin() {
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString(new Date()));
-  
+
   // Dashboard & UX State
   const [isCompactView, setIsCompactView] = useState(false);
   const [showDashboardMetrics, setShowDashboardMetrics] = useState(true);
@@ -96,7 +98,7 @@ export default function Admin() {
     if ("serviceWorker" in navigator && "PushManager" in window) {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js");
-        
+
         // Helper para converter a VAPID key para Uint8Array
         const urlBase64ToUint8Array = (base64String: string) => {
           const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -109,14 +111,14 @@ export default function Admin() {
           return outputArray;
         };
 
-          const keyRes = await fetch(API_URL + "/admin/push/key");
-          if (!keyRes.ok) {
-            alert("Erro ao buscar chave publica do servidor");
-            return;
-          }
-          const { publicKey: publicVapidKey } = await keyRes.json();
-  
-          const existingSub = await registration.pushManager.getSubscription();
+        const keyRes = await fetch(API_URL + "/admin/push/key");
+        if (!keyRes.ok) {
+          alert("Erro ao buscar chave publica do servidor");
+          return;
+        }
+        const { publicKey: publicVapidKey } = await keyRes.json();
+
+        const existingSub = await registration.pushManager.getSubscription();
         if (existingSub) {
           await existingSub.unsubscribe();
         }
@@ -209,15 +211,15 @@ export default function Admin() {
   const [formPromoExpiry, setFormPromoExpiry] = useState("");
   const [formPromoStock, setFormPromoStock] = useState("");
   const [formAddons, setFormAddons] = useState<string[]>([]);
-  const [formKitItems, setFormKitItems] = useState<{productId: string, quantity: number}[]>([]);
+  const [formKitItems, setFormKitItems] = useState<{ productId: string, quantity: number }[]>([]);
   const [formIsMadeToOrder, setFormIsMadeToOrder] = useState(false);
   const [formIsPopular, setFormIsPopular] = useState(false);
   const [formBrand, setFormBrand] = useState("");
   const [isNewBrand, setIsNewBrand] = useState(false);
   const [formIsCombo, setFormIsCombo] = useState(false);
   const [formIsBarca, setFormIsBarca] = useState(false);
-  const [formComboSizes, setFormComboSizes] = useState<{name: string, price: number}[]>([]);
-  const [formComboAddons, setFormComboAddons] = useState<{addonId: string, quantity: number, isFree?: boolean}[]>([]);
+  const [formComboSizes, setFormComboSizes] = useState<{ name: string, price: number }[]>([]);
+  const [formComboAddons, setFormComboAddons] = useState<{ addonId: string, quantity: number, isFree?: boolean }[]>([]);
 
   // Loyalty form
   const [loyaltyData, setLoyaltyData] = useState<LoyaltySettings | null>(null);
@@ -446,8 +448,8 @@ export default function Admin() {
       await Promise.all(ordersToUpdate.map(async o => {
         if (o.origin === 'ifood') {
           const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-          if (newStatus === 'confirmado') await fetch(`${API_URL}/ifood/confirm/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(()=>{});
-          else if (newStatus === 'despachado') await fetch(`${API_URL}/ifood/dispatch/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(()=>{});
+          if (newStatus === 'confirmado') await fetch(`${API_URL}/ifood/confirm/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(() => { });
+          else if (newStatus === 'despachado') await fetch(`${API_URL}/ifood/dispatch/${o.id}`, { method: 'POST', headers, body: JSON.stringify({}) }).catch(() => { });
         }
         return API.put(`/orders/${o.id}/status`, { status: newStatus });
       }));
@@ -485,13 +487,13 @@ export default function Admin() {
   useEffect(() => {
     if (orders && orders.length > 0) {
       const highestId = Math.max(...orders.map(o => o.id || 0));
-      
+
       // Initialize on first load without printing everything
       if (lastPrintedOrderRef.current === null) {
         lastPrintedOrderRef.current = highestId;
         return;
       }
-      
+
       // If there are new orders, print them
       if (highestId > lastPrintedOrderRef.current) {
         const newOrders = orders.filter(o => (o.id || 0) > lastPrintedOrderRef.current!);
@@ -556,7 +558,7 @@ export default function Admin() {
           const elapsedMins = Math.floor((now - new Date(order.createdAt).getTime()) / 60000);
           const isNew = elapsedMins < 5 && order.status === "recebido";
           const isDelayed = elapsedMins >= 30 && ["recebido", "confirmado", "preparando"].includes(order.status);
-          
+
           let borderColorClass = "border-border";
           if (order.status === "recebido") borderColorClass = "border-l-blue-500 border-l-4";
           else if (order.status === "confirmado") borderColorClass = "border-l-cyan-500 border-l-4";
@@ -605,9 +607,9 @@ export default function Admin() {
                         <span className="text-[10px] text-muted-foreground opacity-80">
                           · 📱 {order.customerWhatsApp}
                         </span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-6 w-6 text-green-600 hover:bg-green-600/10 ml-0.5"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -664,7 +666,7 @@ export default function Admin() {
                     {["recebido", "confirmado", "preparando", "pronto"].includes(order.status) && order.consumeType === "entrega" && (
                       <div className="flex items-center gap-2 border border-border rounded-lg px-2 py-1 bg-muted/20">
                         <span className="text-xs text-muted-foreground font-medium">Despachar:</span>
-                        <select 
+                        <select
                           className="text-xs bg-transparent border-none focus:outline-none py-1 cursor-pointer"
                           onChange={(e) => {
                             if (e.target.value) {
@@ -747,14 +749,14 @@ export default function Admin() {
           <div className="bg-primary text-primary-foreground rounded-lg p-2"><Settings size={20} /></div>
           <h1 className="text-xl font-display text-foreground">Tamires</h1>
         </div>
-        
+
         <div className="flex items-center gap-4">
-            <button onClick={testPush} className="bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
-              🧪 Testar Push
-            </button>
-            <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
-              🔔 Ativar Notificações
-            </button>
+          <button onClick={testPush} className="bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
+            🧪 Testar Push
+          </button>
+          <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
+            🔔 Ativar Notificações
+          </button>
           <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
             <LogOut size={16} /> Sair
           </button>
@@ -797,37 +799,37 @@ export default function Admin() {
               <h2 className="text-xl font-display text-foreground">Pedidos Recebidos</h2>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex bg-muted p-1 rounded-lg">
-                  <button 
-                    onClick={() => { setViewLayout("kanban"); localStorage.setItem("admin_view_layout", "kanban"); }} 
+                  <button
+                    onClick={() => { setViewLayout("kanban"); localStorage.setItem("admin_view_layout", "kanban"); }}
                     title="Visão Kanban"
                     className={`p-1.5 rounded-md transition-colors ${viewLayout === "kanban" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <LayoutGrid size={16} />
                   </button>
-                  <button 
-                    onClick={() => { setViewLayout("list"); localStorage.setItem("admin_view_layout", "list"); }} 
+                  <button
+                    onClick={() => { setViewLayout("list"); localStorage.setItem("admin_view_layout", "list"); }}
                     title="Lista Clássica"
                     className={`p-1.5 rounded-md transition-colors ${viewLayout === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <ClipboardList size={16} />
                   </button>
                 </div>
-                <button 
-                  onClick={() => setIsCompactView(!isCompactView)} 
+                <button
+                  onClick={() => setIsCompactView(!isCompactView)}
                   title={isCompactView ? "Ver Detalhes" : "Ocultar Detalhes"}
                   className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Eye size={16} />
                 </button>
-                <button 
-                  onClick={() => setShowDashboardMetrics(!showDashboardMetrics)} 
+                <button
+                  onClick={() => setShowDashboardMetrics(!showDashboardMetrics)}
                   title={showDashboardMetrics ? "Ocultar Métricas" : "Ver Métricas"}
                   className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <BarChart3 size={16} />
                 </button>
-                <button 
-                  onClick={refreshOrders} 
+                <button
+                  onClick={refreshOrders}
                   title="Atualizar Pedidos"
                   className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-primary hover:text-primary transition-colors"
                 >
@@ -840,23 +842,23 @@ export default function Admin() {
             {showDashboardMetrics && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col justify-center">
-                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><TrendingDown size={14} className="rotate-180 text-green-500"/> Faturamento Hoje</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><TrendingDown size={14} className="rotate-180 text-green-500" /> Faturamento Hoje</p>
                   <p className="text-xl md:text-2xl font-bold text-foreground">
                     R$ {filteredOrders.filter(o => o.status === "entregue").reduce((acc, o) => acc + o.total, 0).toFixed(2).replace('.', ',')}
                   </p>
                 </div>
                 <div className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col justify-center">
-                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><Package size={14} className="text-primary"/> Total de Pedidos</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><Package size={14} className="text-primary" /> Total de Pedidos</p>
                   <p className="text-xl md:text-2xl font-bold text-primary">{filteredOrders.length}</p>
                 </div>
                 <div className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col justify-center">
-                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500"/> Concluídos</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" /> Concluídos</p>
                   <p className="text-xl md:text-2xl font-bold text-foreground">
                     {filteredOrders.filter(o => o.status === "entregue").length}
                   </p>
                 </div>
                 <div className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col justify-center">
-                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><Clock size={14} className="text-orange-500"/> Em Andamento</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1 flex items-center gap-1"><Clock size={14} className="text-orange-500" /> Em Andamento</p>
                   <p className="text-xl md:text-2xl font-bold text-orange-500">
                     {filteredOrders.filter(o => !["entregue", "cancelado"].includes(o.status)).length}
                   </p>
@@ -866,30 +868,30 @@ export default function Admin() {
 
             {/* Busca e Ações em Massa */}
             <div className="flex flex-col md:flex-row gap-3 mb-4">
-               <input 
-                 type="text" 
-                 placeholder="Buscar por nome, telefone ou endereço..." 
-                 value={orderSearchQuery}
-                 onChange={e => setOrderSearchQuery(e.target.value)}
-                 className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-border bg-card focus:ring-primary focus:border-primary outline-none transition-all"
-               />
-               <div className="flex gap-2">
-                 <select 
-                   className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-border bg-card text-foreground cursor-pointer focus:ring-primary outline-none"
-                   onChange={(e) => {
-                     if (e.target.value) {
-                       handleBulkUpdate(e.target.value as OrderStatus);
-                       e.target.value = ""; 
-                     }
-                   }}
-                   disabled={isBulkUpdating}
-                 >
-                   <option value="">Ação em Massa (Todos da tela)...</option>
-                   {statusFlow.map(s => (
-                     <option key={s} value={s}>Mover filtrados para {statusConfig[s].label}</option>
-                   ))}
-                 </select>
-               </div>
+              <input
+                type="text"
+                placeholder="Buscar por nome, telefone ou endereço..."
+                value={orderSearchQuery}
+                onChange={e => setOrderSearchQuery(e.target.value)}
+                className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-border bg-card focus:ring-primary focus:border-primary outline-none transition-all"
+              />
+              <div className="flex gap-2">
+                <select
+                  className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-border bg-card text-foreground cursor-pointer focus:ring-primary outline-none"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleBulkUpdate(e.target.value as OrderStatus);
+                      e.target.value = "";
+                    }
+                  }}
+                  disabled={isBulkUpdating}
+                >
+                  <option value="">Ação em Massa (Todos da tela)...</option>
+                  {statusFlow.map(s => (
+                    <option key={s} value={s}>Mover filtrados para {statusConfig[s].label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Filter and Date Picker */}
@@ -905,8 +907,8 @@ export default function Admin() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-sm font-medium text-muted-foreground">Data:</span>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="px-3 py-1.5 text-sm rounded-lg border border-border bg-card text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
@@ -1164,7 +1166,7 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex flex-col gap-2 mt-4 border-t border-border pt-4">
                   <label className="flex items-center gap-2 text-sm text-foreground font-bold">
                     <input type="checkbox" checked={formIsBarca} onChange={(e) => setFormIsBarca(e.target.checked)} className="accent-primary" />
