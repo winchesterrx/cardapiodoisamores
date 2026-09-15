@@ -7,24 +7,21 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('push', function(event) {
+  let payload = { title: 'Nova Notificação', body: 'Você tem uma nova mensagem.', url: '/' };
   if (event.data) {
-    const payload = event.data.json();
-    const title = payload.title || 'Nova Notificação';
-    const options = {
-      body: payload.body || 'Você tem uma nova mensagem.',
-      vibrate: [200, 100, 200, 100, 200, 100, 200],
-      data: {
-        url: payload.url || '/'
-      },
-      // Require interaction para que a notificação não suma sozinha no Windows/Android
-      requireInteraction: true,
-      silent: false
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-    );
+    try {
+      payload = Object.assign(payload, event.data.json());
+    } catch(e) {}
   }
+  
+  const options = {
+    body: payload.body,
+    data: { url: payload.url || '/' }
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(payload.title, options).catch(err => console.error("SW showNotification erro:", err))
+  );
 });
 
 self.addEventListener('notificationclick', function(event) {

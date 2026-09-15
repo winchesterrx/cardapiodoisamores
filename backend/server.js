@@ -1078,6 +1078,44 @@ app.post('/api/push/subscribe', async (req, res) => {
   }
 });
 
+app.post('/api/admin/push/test', async (req, res) => {
+  if (!publicVapidKey || !privateVapidKey) {
+    return res.status(500).json({ error: 'Chaves VAPID nǜo configuradas no servidor' });
+  }
+  try {
+    const [adminSubs] = await db.query('SELECT * FROM admin_push_subscriptions');
+    if (adminSubs.length === 0) {
+      return res.status(404).json({ error: 'Nenhum administrador inscrito para push' });
+    }
+    
+    const payload = JSON.stringify({
+      title: 'Teste de Conexǜo',
+      body: 'Se vocǲ estǭ vendo isso, o Push no servidor estǭ FUNCIONANDO perfeitamente!',
+      url: '/admin'
+    });
+    
+    let successes = 0;
+    let errors = [];
+    
+    for (const sub of adminSubs) {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth }
+      };
+      try {
+        await webpush.sendNotification(pushSubscription, payload);
+        successes++;
+      } catch (e) {
+        errors.push({ endpoint: sub.endpoint, error: e.message, statusCode: e.statusCode });
+      }
+    }
+    
+    res.json({ successes, errors });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno ao testar', details: err.message });
+  }
+});
+
 app.post('/api/admin/push/subscribe', async (req, res) => {
   const { subscription } = req.body;
   

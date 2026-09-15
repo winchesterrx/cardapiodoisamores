@@ -717,6 +717,24 @@ export default function Admin() {
 
   // Login block removed since route is protected by App.tsx
 
+  const testPush = async () => {
+    try {
+      const response = await fetch(API_URL + "/admin/push/test", { method: "POST" });
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Push teste enviado! Sucessos: ${data.successes}. Erros: ${data.errors.length}`);
+        if (data.errors.length > 0) {
+          console.error("Erros do push:", data.errors);
+          alert("Erros (veja o console para detalhes): " + JSON.stringify(data.errors));
+        }
+      } else {
+        alert("Erro no teste: " + data.error);
+      }
+    } catch (err: any) {
+      alert("Erro de conexão: " + err.message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card shadow-card px-4 py-3 flex items-center justify-between">
@@ -726,6 +744,9 @@ export default function Admin() {
         </div>
         
         <div className="flex items-center gap-4">
+            <button onClick={testPush} className="bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
+              🧪 Testar Push
+            </button>
             <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
               🔔 Ativar Notificações
             </button>
