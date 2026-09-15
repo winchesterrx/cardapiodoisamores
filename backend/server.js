@@ -14,12 +14,11 @@ import { startIfoodIntegration, confirmIfoodOrder, dispatchIfoodOrder, readyToPi
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
-const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
-const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
+// Hardcoded VAPID keys to prevent mismatch errors (Error 403) from invalid .env variables
+const publicVapidKey = 'BBjDkpKr6go9_7gK7Ayy_MtRS0BAXLHDXMy8b0R1fIWAUsrfCjC9YygCA7FiTJRa-WxrcnhTxA5UnfSeoXDT2wE';
+const privateVapidKey = 'mK3Kh3rwK6gJj2lSF9fuaaCgeyUpjGuf7SmB_4JutzI';
 
-if (publicVapidKey && privateVapidKey) {
-  webpush.setVapidDetails('mailto:contato@exemplo.com', publicVapidKey, privateVapidKey);
-}
+webpush.setVapidDetails('mailto:contato@doisamores.com.br', publicVapidKey, privateVapidKey);
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
