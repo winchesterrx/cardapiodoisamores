@@ -90,7 +90,7 @@ export default function Admin() {
   );
   const [now, setNow] = useState(Date.now());
   const [prevReceivedCount, setPrevReceivedCount] = useState(0);
-  const [pushPermission, setPushPermission] = useState(Notification.permission);
+  const [pushPermission, setPushPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
 
   const subscribeToPush = async () => {
     if ("serviceWorker" in navigator && "PushManager" in window) {
@@ -142,6 +142,10 @@ export default function Admin() {
 
   const requestNotificationPermission = async () => {
     try {
+      if (typeof Notification === "undefined") {
+        alert("Notificações não são suportadas neste navegador/dispositivo.");
+        return;
+      }
       const permission = await Notification.requestPermission();
       setPushPermission(permission);
       if (permission === "granted") {
