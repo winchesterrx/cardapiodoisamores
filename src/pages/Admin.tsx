@@ -120,23 +120,37 @@ export default function Admin() {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
-        await fetch(API_URL + "/admin/push/subscribe", {
+        const response = await fetch(API_URL + "/admin/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ subscription })
         });
-        console.log("Push registrado!");
-      } catch (err) {
+        if (response.ok) {
+          console.log("Push registrado!");
+          alert("Sucesso! O seu aparelho agora está registrado para receber notificações Push nativas.");
+        } else {
+          alert("Falha ao registrar push no servidor. Código: " + response.status);
+        }
+      } catch (err: any) {
         console.error("Erro no push:", err);
+        alert("Erro no push: " + err.message);
       }
+    } else {
+      alert("Seu navegador não suporta Service Workers ou PushManager.");
     }
   };
 
   const requestNotificationPermission = async () => {
-    const permission = await Notification.requestPermission();
-    setPushPermission(permission);
-    if (permission === "granted") {
-      subscribeToPush();
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission === "granted") {
+        await subscribeToPush();
+      } else {
+        alert("Permissão negada para notificações.");
+      }
+    } catch (e: any) {
+      alert("Erro ao pedir permissão: " + e.message);
     }
   };
 
@@ -708,11 +722,9 @@ export default function Admin() {
         </div>
         
         <div className="flex items-center gap-4">
-          {pushPermission !== "granted" && (
             <button onClick={requestNotificationPermission} className="bg-primary text-primary-foreground font-bold px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow flex items-center gap-2">
               🔔 Ativar Notificações
             </button>
-          )}
           <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
             <LogOut size={16} /> Sair
           </button>
