@@ -96,9 +96,24 @@ export default function Admin() {
     if ("serviceWorker" in navigator && "PushManager" in window) {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js");
+        
+        // Helper para converter a VAPID key para Uint8Array
+        const urlBase64ToUint8Array = (base64String: string) => {
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        };
+
+        const publicVapidKey = 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs';
+
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: "BFgOh3KL1dAkiRzJsQBD13HuoFAjxmkRJZQiYxKXTbP7L_IjniMjeaUxwZByxOEStN2Gk3SoElvYRBe7y1LvhjE"
+          applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
         await fetch(API_URL + "/admin/push/subscribe", {
           method: "POST",

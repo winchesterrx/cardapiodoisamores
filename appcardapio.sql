@@ -107,6 +107,29 @@ CREATE TABLE IF NOT EXISTS `order_timelines` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================================
+-- PUSH NOTIFICATIONS
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `customer_cpf` VARCHAR(20) NOT NULL,
+  `endpoint` TEXT NOT NULL,
+  `p256dh` TEXT NOT NULL,
+  `auth` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `customer_cpf` (`customer_cpf`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `admin_push_subscriptions` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `endpoint` TEXT NOT NULL,
+  `p256dh` TEXT NOT NULL,
+  `auth` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `endpoint` (`endpoint`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==========================================
 -- DADOS INICIAIS (Opcional - para testes)
 -- ==========================================
 
